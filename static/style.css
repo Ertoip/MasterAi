@@ -1,0 +1,76 @@
+h1{
+    display:flex;
+    justify-content:center;
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+}
+p{
+    display:flex;
+    justify-content:center;
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    font-size:1em;
+}
+.send{
+    flex:1;    
+    justify-content:space-evenly;
+    padding:0.8em;
+    font-size:1em;
+}
+.chatbox{
+    flex:20;
+    justify-content:space-evenly;
+    padding:0.8em;
+    font-size:1em;
+}
+.formChat{
+    display:flex;
+    position: static;
+    bottom: 0;
+    width:75%;
+    gap: 1%;
+    margin:auto;
+    margin-top: 1em;
+}
+
+.chat {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid gray;
+    border-radius: 0.3%;
+    overflow-y:scroll;
+    height: 48em;
+    bottom: 5em;
+    width:95%;
+    margin:auto;
+}
+
+.chat .assistant{
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    height: fit-content;
+    padding:1em;
+    background-color: rgba(128,128,128, 0.25);
+}
+
+.chat .user{
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    height: fit-content;
+    padding:1em;
+}
+
+.chat p{
+    width:80%;
+    margin:auto;
+    position: relative;
+    line-height: 1.5em;
+}
+
+.wrapper{
+    position: absolute;
+    bottom: 2em;
+    left: 0;
+    width: 100%;
+}
