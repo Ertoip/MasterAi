@@ -1,19 +1,13 @@
 from flask import url_for, Flask, request, render_template, escape
 from flask_socketio import SocketIO, emit
-import re
-import os
-from pyttsx3 import init
-from speech_recognition import Recognizer, Microphone
 import openai
 from hidden import keys
-import mysql.connector
-import string
 
 #init keys
 app = Flask(__name__)
 openai.api_key = keys.openai
 app.config['SECRET_KEY'] = '192b9bdd22ab9ed4d12e236c78afcb9a393ec15f71bbf5dc987d54727823bcbf'
-socketio = SocketIO(app, async_mode='eventlet')
+socketio = SocketIO(app, async_mode='eventlet', ping_timeout=120, ping_interval=30)
 #mic and audio settings
 mic = False
 audio = False
@@ -107,18 +101,12 @@ a chance meeting with her former mentor Vlesic she
 finds herself a member of the mercenary band that he
 now leads.
 GILLIAN’S TRAITS:
-•
-An adept thief; exceptional pickpocket; incredibly sneaky.
-•
-Former member of the Thieves of Strayhold.
-•
-Born survivor; very streetwise; lives by her wits.
-•
-Four throwing knives; deadly accurate at 10 paces.
-•
-Brave and very determined.
-•
-Extremely perceptive; Can usually tell when someone is lying.
+•An adept thief; exceptional pickpocket; incredibly sneaky.
+•Former member of the Thieves of Strayhold.
+•Born survivor; very streetwise; lives by her wits.
+•Four throwing knives; deadly accurate at 10 paces.
+•Brave and very determined.
+•Extremely perceptive; Can usually tell when someone is lying.
 
 VLESIC’S STORY:
 Vlesic is the quintessential
@@ -147,18 +135,12 @@ hopeless. Vlesic knows that the Kingdom will eventually
 fall and yet the blood in his veins draws him to this noble
 cause.
 VLESIC’S TRAITS:
-•
-Exiled nobleman of Arthedain; Seeks to reclaim birthright.
-•
-Former Dunedain Ranger; Formidable swordsman.
-•
-Born leader; Strong willed and proud.
-•
-Considers Gillian to be his daughter.
-•
-Former Swordmaster of the Thieves of Strayhold.
-•
-Wields a Mithril edged sword; dwarven craftsmanship.
+•Exiled nobleman of Arthedain; Seeks to reclaim birthright.
+•Former Dunedain Ranger; Formidable swordsman.
+•Born leader; Strong willed and proud.
+•Considers Gillian to be his daughter.
+•Former Swordmaster of the Thieves of Strayhold.
+•Wields a Mithril edged sword; dwarven craftsmanship.
 
 RULES FOR RESOLVING EVENTS IN THE STORY
 As the player play the game and the story unfolds events will
@@ -224,9 +206,6 @@ for your character or modify one of their existing traits.
 Any changes the player make should be relevant in some way to
 the event itself and reveal some new aspect or detail
 about the player character.
-Always print the number of dices for each player, here is an example for four players:
-player 1: 5, player 2: 4, player 3: 7, player 4: 3.
-*content of the story*
 
 SOME EXAMPLE DICE ROLLS:
 The game master asks Gillian to make a dice roll to see if she
@@ -331,20 +310,37 @@ how his character actually dies so take the opportunity
 to make it a defining moment in the story. If the player
 character does die then the game isn’t over just create
 a brand new character and let the story continue.
-When you generate the story always print the number of dices for each player and update it when the player loses or gains a dice,
+Afteralways print the number of dices for each player and update it when the player loses or gains a dice,
 here is an example for four players:
 player 1: 5, player 2: 4, player 3: 7, player 4: 3.
-*content of the story*
 
-Now start the session by saying 'Welcome players to' and introduce the game"""}]
+Start the session by saying 'Welcome players to' and introduce the game then
+ask the number of characters and do the character creation and after deciding the story incipit start the game.
+Start counting the number of dices only after character creation.
+
+Here is an example of a dialogue between you and the player:
+you: Welcome to the puddle, I'm Addisen Sondelon your game master. The puddle is a collaborative storytelling game where the objective
+is to create an immesive story. To start the game tell me, how many players are going to play today?
+player: We are 2
+you: Great, now create a character for each player and the send it to me
+player: *Player 1*
+you: Great now send the second player
+player: *Player 2*
+you: Now decide togheter the setting of the story and tell me the incipit
+player: The morning sun had barely risen over the horizon when Laric, Kaida, and Arin received a summons from the King's advisor. The trio arrived at the castle to find a tense atmosphere, with the advisor looking grave as he explained the situation. The kingdom was under threat from a powerful sorcerer who had risen to power in the neighboring land. He was said to have amassed an army of dark creatures and was preparing to launch an attack on the kingdom. The advisor implored the three adventurers to journey to the sorcerer's stronghold, deep in the heart of enemy territory, and put an end to his plans before it was too late. With determination in their hearts and their skills honed for the challenge ahead, Laric, Kaida, and Arin set out on their most perilous adventure yet.
+you: Player 1: 6 dices Player 2: 6 dices ----- You are now traveling on the road to reach the enemy stronghold, everything seems ok until from the side of the road you see a group of goblins running towards you, what do you do?
+
+Now start and rememeber to be not write short texts!"""}]
 
 completion = openai.ChatCompletion.create(
-    model="gpt-4", 
+    model="gpt-4",
     messages=messages,
     temperature=0.2,
 ) 
 
 messages.append({"role":"assistant", "content":completion.choices[0].message.content})
+
+print("\n"+completion.choices[0].message.content)
 
 ms = ''
 
@@ -371,18 +367,12 @@ def handle_user_message(data):
     completion = openai.ChatCompletion.create(
         model="gpt-4", 
         messages=messages,
-        temperature=0.5,
+        temperature=0.7,
     )
     response = completion.choices[0].message.content
     messages.append({"role":"assistant", "content":response})
+    print("\n"+response)
     emit('response', {'message': response})
-        
-@app.route("/chat", methods=["POST"])
-def chat():
-    ms = request.form["chat"]
-
     
-    return jsonify({"role":"user","content":ms}, {"role":completion.choices[0].message.role,"content":completion.choices[0].message.content})
-
 if __name__ == '__main__':
     socketio.run(app, host='127.0.0.1', port=5000)
