@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List
+from pydantic import BaseModel
 
 import openai
 from hidden import keys
@@ -335,7 +336,7 @@ Now start and rememeber to be not write short texts!"""
 
 # assistant config
 messages = [{"role": "system",  
-             "content": "say hi"}]
+             "content": rules}]
 
 print("generating...")
 completion = openai.ChatCompletion.create(
@@ -351,21 +352,18 @@ print("ready")
 async def home(request: Request):
     return templates.TemplateResponse("hello.html", {"request": request, "game": game, "completion": completion.choices[0].message.content})
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-   
-    while True:
-        try:
-            message = await websocket.receive_text()
-            messages.append({"role":"user", "content": message})
-            completion = openai.ChatCompletion.create(
-                model="gpt-4", 
-                messages=messages,
-                temperature=0.7,
-            )
-            response = completion.choices[0].message.content
-            messages.append({"role":"assistant", "content": response})
-            await websocket.send_text(response)
-        except WebSocketDisconnect:
-            break
+class message(BaseModel):
+    msg: str
+
+# endpoint to handle POST request for messages
+@app.post("/messages")
+async def post_message(Message: message):
+    messages.append({"role":"user", "content": Message.msg})
+    completion = openai.ChatCompletion.create(
+        model="gpt-4", 
+        messages=messages,
+        temperature=0.7,
+    )
+    ms = completion.choices[0].message.content
+    messages.append({"role":"assistant", "content": ms})
+    return ms

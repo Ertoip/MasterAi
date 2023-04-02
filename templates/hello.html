@@ -26,23 +26,31 @@
     </form>
 </body>
     <script>
-        var ws = new WebSocket("ws://127.0.0.1:8000/ws");
         var messages = document.getElementById('chat')
 
-        ws.onmessage = function(event) {
+        async function postMessage(message) {
+            const rawResponse = await fetch('/messages', {
+                method: 'POST',
+                headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({msg: message.toString()})
+            });
+            const response = await rawResponse.json();
+
             var message = document.createElement('div')
             message.setAttribute("class", "assistant");
             var p = document.createElement('p')
-            var content = document.createTextNode(event.data)
+            var content = document.createTextNode(response)
             p.appendChild(content)
             message.appendChild(p)
             messages.appendChild(message)
-        };
+        }
 
-        function sendMessage(event) {
+        async function sendMessage(event) {
             event.preventDefault()
             var input = document.getElementById("inputChat")
-            ws.send(input.value)            
             var messages = document.getElementById('chat')
             var message = document.createElement('div')
             message.setAttribute("class", "user");
@@ -51,7 +59,10 @@
             p.appendChild(content)
             message.appendChild(p)
             messages.appendChild(message)
+            data = input.value
             input.value = ''
+            await postMessage(data)            
         }
+
     </script>
 </html>
