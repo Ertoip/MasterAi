@@ -26,7 +26,7 @@
     </form>
 </body>
     <script>
-        var ws = new WebSocket("ws://localhost:8000/ws");
+        var ws = new WebSocket("ws://masterai-1-u6907037.deta.app:80/ws");
         var messages = document.getElementById('chat')
 
         ws.onmessage = function(event) {

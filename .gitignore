@@ -1,2 +1,4 @@
 /hidden/
 /__pycache__/
+/venv/
+*.zip

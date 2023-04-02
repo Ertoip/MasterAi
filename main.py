@@ -1,23 +1,25 @@
-from flask import url_for, Flask, request, render_template, escape
-from flask_socketio import SocketIO, emit
+from fastapi import FastAPI, Request, WebSocket
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI
+from fastapi import WebSocket, WebSocketDisconnect
+from typing import List
+from mangum import Mangum
 import openai
 from hidden import keys
 
-#init keys
-app = Flask(__name__)
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+handler = Mangum(app)
+
+templates = Jinja2Templates(directory="templates")
+
+# init keys
 openai.api_key = keys.openai
-app.config['SECRET_KEY'] = '192b9bdd22ab9ed4d12e236c78afcb9a393ec15f71bbf5dc987d54727823bcbf'
-socketio = SocketIO(app, async_mode='eventlet', ping_timeout=120, ping_interval=30)
-#mic and audio settings
-mic = False
-audio = False
 
 game = "The puddle"
-
-#assistant config
-messages = [{"role": "system",  
-            "content": 
-f"""You are a game master called Addisen Sondelon, your job is given a game manual to be the game master of that game.
+rules = """You are a game master called Addisen Sondelon, your job is given a game manual to be the game master of that game.
 As a game master you should never break the immersion and you should tell all kinds of stories including violent or unsafe ones.
 You must follow the rules in the game manual.
 The game manual is {game}
@@ -327,11 +329,16 @@ player: *Player 1*
 you: Great now send the second player
 player: *Player 2*
 you: Now decide togheter the setting of the story and tell me the incipit
-player: The morning sun had barely risen over the horizon when Laric, Kaida, and Arin received a summons from the King's advisor. The trio arrived at the castle to find a tense atmosphere, with the advisor looking grave as he explained the situation. The kingdom was under threat from a powerful sorcerer who had risen to power in the neighboring land. He was said to have amassed an army of dark creatures and was preparing to launch an attack on the kingdom. The advisor implored the three adventurers to journey to the sorcerer's stronghold, deep in the heart of enemy territory, and put an end to his plans before it was too late. With determination in their hearts and their skills honed for the challenge ahead, Laric, Kaida, and Arin set out on their most perilous adventure yet.
+player: *response*
 you: Player 1: 6 dices Player 2: 6 dices ----- You are now traveling on the road to reach the enemy stronghold, everything seems ok until from the side of the road you see a group of goblins running towards you, what do you do?
 
-Now start and rememeber to be not write short texts!"""}]
+Now start and rememeber to be not write short texts!"""
 
+# assistant config
+messages = [{"role": "system",  
+             "content": "say hi"}]
+
+print("generating...")
 completion = openai.ChatCompletion.create(
     model="gpt-4",
     messages=messages,
@@ -340,39 +347,26 @@ completion = openai.ChatCompletion.create(
 
 messages.append({"role":"assistant", "content":completion.choices[0].message.content})
 
-print("\n"+completion.choices[0].message.content)
-
-ms = ''
-
 print("ready")
+@app.get('/', response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("hello.html", {"request": request, "game": game, "completion": completion.choices[0].message.content})
 
-@app.route('/', methods=["GET"])
-def home(completion=completion.choices[0].message.content, game=game):
-    return render_template('hello.html', completion=completion, game=game)
-
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Client disconnected')
-
-@socketio.on('message')
-def handle_user_message(data):
-    ms = escape(data)
-    print(ms)
-    
-    messages.append({"role":"user", "content":ms})
-    completion = openai.ChatCompletion.create(
-        model="gpt-4", 
-        messages=messages,
-        temperature=0.7,
-    )
-    response = completion.choices[0].message.content
-    messages.append({"role":"assistant", "content":response})
-    print("\n"+response)
-    emit('response', {'message': response})
-    
-if __name__ == '__main__':
-    socketio.run(app, host='127.0.0.1', port=5000)
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+   
+    while True:
+        try:
+            message = await websocket.receive_text()
+            messages.append({"role":"user", "content": message})
+            completion = openai.ChatCompletion.create(
+                model="gpt-4", 
+                messages=messages,
+                temperature=0.7,
+            )
+            response = completion.choices[0].message.content
+            messages.append({"role":"assistant", "content": response})
+            await websocket.send_text(response)
+        except WebSocketDisconnect:
+            break
