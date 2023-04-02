@@ -5,13 +5,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List
-from mangum import Mangum
+
 import openai
 from hidden import keys
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-handler = Mangum(app)
 
 templates = Jinja2Templates(directory="templates")
 
