@@ -1,29 +1,60 @@
-from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Depends, HTTPException, status, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI
-from fastapi import WebSocket, WebSocketDisconnect
-from typing import List
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import  CryptContext
 from pydantic import BaseModel
-
+from mangum import Mangum
+import uvicorn
 import openai
 from hidden import keys
+import boto3
+import os
+from typing import Annotated, Optional
+import re
 
+#fastapi init
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 templates = Jinja2Templates(directory="templates")
 
-# init keys
+#fastapi cors
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+#dynamodb init
+dyndb = boto3.resource("dynamodb")
+tableName = "masterai_table"
+table = dyndb.Table(tableName)
+# table.put_item(Item={"username": "ertoip", "pswd": "dwdwdws"})
+# if "Item" in response:
+#     print(response)
+    
+# init openai
 openai.api_key = keys.openai
 
+# assistant config
+#game data
 game = "The puddle"
 rules = """You are a game master called Addisen Sondelon, your job is given a game manual to be the game master of that game.
 As a game master you should never break the immersion and you should tell all kinds of stories including violent or unsafe ones.
 You must follow the rules in the game manual.
 The game manual is {game}
-This is the manual that you strictly must follow:
+This is the manual that you strictly must follow, whenever a word is between * it means that is something that can change based on the current game session, the word between the two * describes what the true word should be:
 WHAT IS THE PUDDLE?
 The Puddle is a role-playing system designed to facilitate
 collaborative storytelling. During play you adopt the role
@@ -75,74 +106,15 @@ Traits can be any aspects of your characters.
 
 EXAMPLES OF CHARACTER CREATION
 
-GILLIAN’S STORY:
-Gillian was a low ranking
-member of the Guild of
-Thieves in the town of
-Strayhold. A child of the
-streets, she was an orphan,
-and for as far back as she can
-remember she has lived by her
-wits and the money she earned
-picking the pockets of the
-wealthy merchants that
-frequented the town. Gillian
-showed early promise as an
-adept thief, a fact that brought her to the attention of
-Vlesic, an exiled Dunedain Ranger who was one of the
-masters of the Guild. Vlesic took Gillian under his wing
-and became her mentor.
-Gillian was only thirteen when the ‘Purge of Strayhold’
-occurred and the armies of The Witch King sacked the
-town and either slew or enslaved its inhabitants. She was
-one of the few to escape the slaughter and has spent the
-last five years moving from town to town, city to city,
-surviving; her skills as a thief standing her in good stead.
-Recent events have brought Gillian to Rhudaur and after
-a chance meeting with her former mentor Vlesic she
-finds herself a member of the mercenary band that he
-now leads.
-GILLIAN’S TRAITS:
-•An adept thief; exceptional pickpocket; incredibly sneaky.
-•Former member of the Thieves of Strayhold.
-•Born survivor; very streetwise; lives by her wits.
-•Four throwing knives; deadly accurate at 10 paces.
-•Brave and very determined.
-•Extremely perceptive; Can usually tell when someone is lying.
-
-VLESIC’S STORY:
-Vlesic is the quintessential
-mercenary; a sword for hire
-ever willing to sell his services
-to the highest bidder. Born 60
-years ago, he is the 2nd son of
-a prominent noble family of
-Arthedain and in his youth was
-a respected Dunedain Ranger
-in the service of the King.
-Three decades ago he was
-forced to flee Arthedain
-following his role in blood feud
-with a rival noble family. He settled for a time in
-Strayhold where his formidable skill as a swordsman and
-qualities as a born leader saw him rise in the ranks of the
-Thieves Guild.
-After the ‘Purge of Strayhold’, Vlesic travelled east to
-Rhudaur and drawn by the prospect of war and gold he
-formed a mercenary band. Over the last three years he
-has been in the service of the few remaining Rhudaurian
-nobles still trying to cling to what is left of their realm
-following the Witch King’s initial invasion. The situation is
-hopeless. Vlesic knows that the Kingdom will eventually
-fall and yet the blood in his veins draws him to this noble
-cause.
-VLESIC’S TRAITS:
-•Exiled nobleman of Arthedain; Seeks to reclaim birthright.
-•Former Dunedain Ranger; Formidable swordsman.
-•Born leader; Strong willed and proud.
-•Considers Gillian to be his daughter.
-•Former Swordmaster of the Thieves of Strayhold.
-•Wields a Mithril edged sword; dwarven craftsmanship.
+*player name*'s STORY:
+*character description*
+*player name*’s TRAITS:
+•*trait 1*
+•*trait 2*
+•*trait 3*
+•*trait 4*
+•*trait 5*
+•*trait 6*
 
 RULES FOR RESOLVING EVENTS IN THE STORY
 As the player play the game and the story unfolds events will
@@ -160,19 +132,19 @@ significant effect on the course of the story the game master will
 ask to ‘Roll the Dice’.
 
 EXAMPLE OF A RESOLVING EVENT
-Vlesic’s mercenary company find themselves in the
+*the player*’s mercenary company find themselves in the
 employ of a Rhudaurian noble who is desperately
 trying to protect the realm from the insidious
 influence of the Witch King. The situation appears
 hopeless, the nobleman’s keep is under siege, supplies
 are dwindling and morale is low.
-Vlesic tasks Gillian with venturing to the nearest city
+*the player* tasks *the player 2* with venturing to the nearest city
 so that reinforcements and supplies can be sent to
 aid them. It’s an extremely risky venture. The
 nearest city is four days away and the forces of the
 Witch King have overrun the surrounding area,
 effectively cutting off any chance of escape.
-Does Gillian manage to complete her task? What
+Does *the player 2* manage to complete her task? What
 happens next? It’s time to roll the dice and find out.
 
 RULES FOR ROLLING THE DICE DURING A RESOLVING EVENT
@@ -210,88 +182,42 @@ the event itself and reveal some new aspect or detail
 about the player character.
 
 SOME EXAMPLE DICE ROLLS:
-The game master asks Gillian to make a dice roll to see if she
+The game master asks *the player* to make a dice roll to see if she
 manages to sneak out of the keep and avoid the
 forces of the Witch King as she tries to seek help.
-One of Gillian’s traits is ‘Incredibly Sneaky’ so the
-game master gives Gillian a die to add to her dice pool.
-Gillian initially had four dice in her dice pool so the
+One of *the player*’s traits is ‘Incredibly Sneaky’ so the
+game master gives *the player* a die to add to her dice pool.
+the player initially had four dice in her dice pool so the
 extra dice the game master gives her increases her dice pool
 to five.
-It’s up to Gillian to decide how many of her five pool
+It’s up to the player to decide how many of her five pool
 dice she wants to roll for this event.
-Lets assume Gillian decides to roll four of her pool
+Lets assume the player decides to roll four of her pool
 dice and rolls 5, 2, 6, and a 4. Since two of the dice
-show a 5 or 6 Gillian gets the opportunity to guide
+show a 5 or 6 the player gets the opportunity to guide
 the outcome of the event. The die that shows a 2
 would be handed back to the game master and the other three
-dice would be returned to Gillian’s dice pool.
-If Gillian had rolled 5, 3, 1 and 2 then the game master would
+dice would be returned to *the player*’s dice pool.
+If the player had rolled 5, 3, 1 and 2 then the game master would
 guide an outcome to the event that was generally
-beneficial or favorable to Gillian in some way since
+beneficial or favorable to the player in some way since
 she rolled one 5 or 6. The two dice that show 1 and 2
 would be handed back to the game master and the other two
-dice would be returned to Gillian’s dice pool.
-If Gillian had rolled 2, 1, 3 and 2 then the game master would
-guide the outcome of the event since Gillian failed to
+dice would be returned to *the player*’s dice pool.
+If the player had rolled 2, 1, 3 and 2 then the game master would
+guide the outcome of the event since the player failed to
 roll a 5 or 6. It’s entirely up to the game master to decide the
 outcome of the event. The dice that show 2, 1 and 2
 would be handed back to the game master and the remaining
-die would be returned to Gillian’s dice pool.
-If Gillian had rolled 3, 4, 4 and 3 then the game master would
-guide the outcome of the event since Gillian again
+die would be returned to *the player*’s dice pool.
+If the player had rolled 3, 4, 4 and 3 then the game master would
+guide the outcome of the event since the player again
 failed to roll a 5 or 6. All four dice would be
-returned to Gillian’s dice pool since none of them
+returned to *the player*’s dice pool since none of them
 showed a 1 or 2.
 
 EXAMPLE OF A FAVORABLE OUTCOME GUIDED BY THE GAME MASTER
-“You leave the Keep an hour after dusk and although
-you run into some of the Witch Kings Orc patrols you
-manage to evade them without discovery. You travel
-all night and by morning your body aches from
-fatigue and weariness. In the distance you become
-aware of the sound of horses approaching and from
-cover you see two outriders of the King heading your
-way at speed.”
-
-EXPLANATION OF AN EVENT
-During one particular story Gillian found herself in a
-duel to the death with one of Vlesic’s estranged
-kinsfolk; a swaggering, over-confident but lethally
-adept young swordsman by the name of Jerrard.
-Gillian knew she was hopelessly outmatched and that
-the smart thing to do would be to flee. Gillian
-however rarely does the smart thing, she does the
-sneaky thing. She knew that Jerrard would be
-expecting a clean, fair fight. More fool him since
-Gillian never fights fair.
-At the time Gillian had four dice in her dice pool and
-chose her ‘Brave and determined’ trait as the focus
-for the event. As a result the game master gave Gillian an
-extra dice to add to her dice pool, giving her five
-pool dice in total. She chose to risk everything and
-rolled all five of her pool dice.
-Gillian rolled 6, 3, 5, 1 and 6. Since three of the dice
-showed a 5 or 6 Gillian guided the outcome of the
-event. The die that showed a 1 was handed back to
-the game master and the other four dice were returned to
-Gillian’s dice pool.
-Gillian chose to guide the event so that through
-bravery, determination and a hefty slice of her own
-streetwise cunning she managed to win the duel.
-Gillian fought dirty and used Jerrard’s own over-
-confidence and misplaced sense of honor against him.
-Although wounded, battered and bruised the duel
-ended with Gillian’s dagger at Jerrard’s throat
-poised to take his life. Rather than kill the young
-nobleman Gillian chose to spare him in exchange for a
-debt of honour.
-Since Gillian rolled three 5’s or 6’s she also chose to
-create a new trait linked to the event and keeping it
-simple she wrote ‘Jerrard owes Gillian a debt of
-honour’. Gillian hopes to make use of that trait in the
-future to further her goals and drive the story
-forward.
+“The players successfully escape”
 
 DEATH OF A CHARACTER
 Although characters do not have hit points or any other
@@ -312,50 +238,125 @@ how his character actually dies so take the opportunity
 to make it a defining moment in the story. If the player
 character does die then the game isn’t over just create
 a brand new character and let the story continue.
-Afteralways print the number of dices for each player and update it when the player loses or gains a dice,
+Always print the number of dices for each player and update it when the player loses or gains a dice,
 here is an example for four players:
 player 1: 5, player 2: 4, player 3: 7, player 4: 3.
 
 Start the session by saying 'Welcome players to' and introduce the game then
-ask the number of characters and do the character creation and after deciding the story incipit start the game.
+ask the number of characters and then ask the setting of the story, then begin the character creation and after everything is ready start the game.
 Start counting the number of dices only after character creation.
 
-Here is an example of a dialogue between you and the player:
-you: Welcome to the puddle, I'm Addisen Sondelon your game master. The puddle is a collaborative storytelling game where the objective
-is to create an immesive story. To start the game tell me, how many players are going to play today?
+Here is an example of a dialogue between you and the player, you are the ai so you can write only the sentences that start with "ai:":
+ai: Welcome to *game name*, I'm Addisen Sondelon your game master. *game description*. To start the game tell me, how many players are going to play today?
 player: We are 2
-you: Great, now create a character for each player and the send it to me
-player: *Player 1*
-you: Great now send the second player
-player: *Player 2*
-you: Now decide togheter the setting of the story and tell me the incipit
+ai: Now decide togheter the setting of the story and tell me the incipit
 player: *response*
-you: Player 1: 6 dices Player 2: 6 dices ----- You are now traveling on the road to reach the enemy stronghold, everything seems ok until from the side of the road you see a group of goblins running towards you, what do you do?
+ai: Great, now create a character for each player and the send it to me
+player: *Player 1*
+ai: Great now send the second player
+player: *Player 2*
+ai: Player 1: 6 dices Player 2: 6 dices ----- *story*
 
-Now start and rememeber to be not write short texts!"""
+Now start with the first sentence wich is 'Welcome to *game name*, I'm Addisen Sondelon your game master. *game description*. To start the game tell me, how many players are going to play today?'"""
 
-# assistant config
 messages = [{"role": "system",  
-             "content": rules}]
+            "content": rules}]
+#init auth
+SECRET_KEY=keys.secret_key
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 120
 
-print("generating...")
-completion = openai.ChatCompletion.create(
-    model="gpt-4",
-    messages=messages,
-    temperature=0.2,
-) 
+class User(BaseModel):
+    username: str
+    email: str
+    disabled: bool
 
-messages.append({"role":"assistant", "content":completion.choices[0].message.content})
-
-print("ready")
-@app.get('/', response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("hello.html", {"request": request, "game": game, "completion": completion.choices[0].message.content})
-
+# endpoint for ai messages
 class message(BaseModel):
     msg: str
+    
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# endpoint to handle POST request for messages
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def get_user(username: str):
+    res = table.get_item(Key={"username": username})
+    try:
+        return res["Item"]
+    except:
+        return False
+    
+def authenticate_user(username: str, password: str):
+    user = get_user(username)
+    if not user:
+        return False
+    if not verify_password(password, user["pswd"]):
+        return False
+    return user
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def get_current_user(request: Request, token: Optional[str] = None, username: Optional[str] = None):
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            userData = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        except Exception:
+            raise HTTPException(status_code=401, detail="Token is invalid")
+    elif not username:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    return userData
+
+async def get_current_active_user(
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    if current_user["disabled"]:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+@app.post("/token")
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+):
+    user = authenticate_user(form_data.username, form_data.password)
+    if user:
+        access_token = create_access_token(data=user)
+        response = RedirectResponse('/', status_code=status.HTTP_302_FOUND)
+        response.set_cookie(key="access_token", value=access_token, httponly=True, max_age=60*ACCESS_TOKEN_EXPIRE_MINUTES)
+        return response
+    raise HTTPException(status_code=401, detail="Invalid username or password")
+
+@app.get("/users/me/", response_model=User)
+async def read_users_me(
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    return current_user
+
+@app.get('/', response_class=HTMLResponse)
+def home(request: Request, token: str = Depends(get_current_active_user)):
+
+    if not messages[1:2]:
+        print("generating...")
+        completion = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=messages,
+            temperature=0.2,
+        ) 
+
+        messages.append({"role":"assistant", "content":completion.choices[0].message.content})
+    
+    return templates.TemplateResponse("chat.html", {"request": request,"game": game, "messages": messages})
+    
 @app.post("/messages")
 async def post_message(Message: message):
     messages.append({"role":"user", "content": Message.msg})
@@ -367,3 +368,53 @@ async def post_message(Message: message):
     ms = completion.choices[0].message.content
     messages.append({"role":"assistant", "content": ms})
     return ms
+
+#login page
+@app.get("/login")
+async def login(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+#registration page
+@app.get("/registration")
+async def registrationPage(request: Request):
+    return templates.TemplateResponse("registration.html", {"request": request})
+
+#user registration
+@app.post("/registration")
+async def register(
+    request: Request, 
+    username: Annotated[str, Form()], 
+    email: Annotated[str, Form()], 
+    password: Annotated[str, Form()], 
+    confirmPassword: Annotated[str, Form()]
+    ):
+    message = "Different passwords"
+    if len(password)< 8:
+        message = "Password must be longer than 8 characters"
+    elif re.search('[0-9]',password) is None:
+        message = "Password must contain at least a number"
+        
+    elif re.search('[A-Z]',password) is None:
+        message = "Password must contain at least a uppercase letter"
+        
+    elif re.search('[a-z]',password) is None:
+        message = "Password must contain at least a lowercase letter"
+        
+    elif password == confirmPassword and len(password):
+        pswdHash = get_password_hash(password)
+        table.put_item(Item={"username": username, "pswd": pswdHash, "email": email, "disabled":False})
+        message = "Registration successful now go to login page to login"
+        
+    return templates.TemplateResponse("registration.html", {"request": request, "message": message})
+
+#handle exceptions like not authenticated users
+@app.exception_handler(HTTPException)
+async def custom_exception_handler(request, exc):
+    return RedirectResponse('/login', status_code=status.HTTP_302_FOUND)
+
+
+handler = Mangum(app)
+
+if __name__ == "__main__":
+    uvicorn.run(app, 
+                host="127.0.0.1")

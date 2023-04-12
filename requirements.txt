@@ -1,0 +1,12 @@
+fastapi
+PyJWT
+passlib
+pydantic
+mangum
+openai
+boto3
+python-jose
+uvicorn
+jinja2
+python-multipart
+bcrypt

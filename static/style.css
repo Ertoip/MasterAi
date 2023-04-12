@@ -21,6 +21,7 @@ p{
     padding:0.8em;
     font-size:1em;
 }
+
 .formChat{
     display:flex;
     position: static;
@@ -73,4 +74,41 @@ p{
     bottom: 2em;
     left: 0;
     width: 100%;
+}
+
+html, body {
+    border-color: #736b5e;
+    color: #e8e6e3;
+  }
+
+html, body {
+background-color: #181a1b;
+}
+
+* {
+scrollbar-color: #454a4d #202324;
+}
+
+html {
+    color-scheme: dark !important;
+}
+
+:root {
+    --darkreader-neutral-background: #131516;
+    --darkreader-neutral-text: #d8d4cf;
+    --darkreader-selection-background: #004daa;
+    --darkreader-selection-text: #e8e6e3;
+}
+
+body {
+    --fbc-blue-60: #0060df;
+    --fbc-blue-70: #003eaa;
+    --fbc-gray-20: #ededf0;
+    --fbc-light-gray: #F0F0F4;
+    --fbc-white: #ffffff;
+    --fbc-transition: all .15s cubic-bezier(.07,.95,0,1);
+    --fbc-borders: 1px solid #ededf0;
+    --fbc-primary-text: #15141A;
+    --fbc-secondary-text: #5B5B66;
+    --fbc-font-size: 13px;
 }

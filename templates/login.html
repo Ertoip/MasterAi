@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Login Page</title>
+    <link rel="stylesheet" href="{{url_for('static', path='login_style.css')}}">
+	<meta content="width=device-width, initial-scale=1" name="viewport" />
+</head>
+<body>
+	<div class="login-box">
+		<h1>Login</h1>
+		<form action="/token" method="post">
+			<label for="email">Email address or username:</label><br>
+			<input type="text" id="email" name="username" required><br>
+			<label for="password">Password:</label><br>
+			<input type="password" id="password" name="password" required><br>
+			<input type="submit" value="Login">
+		</form>
+        <div class="new-to-site">
+			<p>New to this website?</p>
+			<a href="/registration"><button>Register</button></a>
+		</div>
+        <p>{{message}}</p>
+	</div>
+</body>
+</html>

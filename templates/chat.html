@@ -12,9 +12,11 @@
 <body>
     <h1>{{game}}</h1>
     <div class="chat" id="chat">
-        <div class="assistant">
-            <p>{{completion}}</p>
-        </div>
+        {% for message in messages[1:] %}
+            <div class="{{message.role}}">
+                <p>{{message.content}}</p>
+            </div>
+        {% endfor %}
     </div>
     <form class="formChat" action="" onsubmit="sendMessage(event)">
         <input class="chatbox" type="text" name="chat" id="inputChat" required>
@@ -59,9 +61,11 @@
             p.appendChild(content)
             message.appendChild(p)
             messages.appendChild(message)
+            messages.scrollTop = messages.scrollHeight;
             data = input.value
             input.value = ''
-            await postMessage(data)            
+            await postMessage(data)  
+            messages.scrollTop = messages.scrollHeight;          
         }
 
     </script>

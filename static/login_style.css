@@ -1,0 +1,113 @@
+.login-box {
+	width: 20%;
+	margin: auto;
+	margin-top: 5em;
+	background-color: #222;
+	padding: 2em;
+	border: 1px solid #444;
+	border-radius: 5px;
+	box-shadow: 0 0 10px #444;
+	font-family: Arial, sans-serif;
+	font-size: 14px;
+	color: #ccc;
+}
+
+.login-box h1 {
+	text-align: center;
+	margin-top: 0;
+}
+
+.login-box form {
+	margin-top: 20px;
+}
+
+label {
+	display: block;
+	margin-bottom: 5px;
+	color: #ccc;
+}
+
+input[type="email"], input[type="password"], input[type="text"] {
+	width: 90%;
+	padding: 10px;
+	margin: auto;
+    margin-bottom: 1em;
+	border-radius: 5px;
+	border: 1px solid #444;
+	font-size: 14px;
+	background-color: #444;
+	color: #fff;
+}
+
+input[type="submit"] {
+	background-color: rgba(0,0,0,0);
+	color: #ffffff;
+	padding: 10px 20px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 14px;
+    border: 1px solid #444;
+}
+
+input[type="submit"]:hover {
+	background-color: #183131;
+    color: #54d7b9;
+    border-color: #2b6f65;
+}
+
+input[type="submit"]:active {
+	background-color: #54d7b9;
+    color: white;
+    border-color: #2b6f65;
+}
+
+.new-to-site {
+	margin-top: 2em;
+	text-align: center;
+}
+
+.new-to-site p {
+	margin-bottom: 10px;
+	color: #ccc;
+}
+
+.new-to-site button {
+	background-color: #555;
+	color: #fff;
+	border: none;
+	border-radius: 5px;
+	padding: 10px 20px;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.new-to-site button:hover {
+	background-color: #777;
+}
+
+html, body {
+	background-color: #181a1b;
+}
+
+@media screen and (max-width: 768px) {
+    p, label, input[type="submit"]{
+		font-size: 1.1em;
+	}
+
+	h1{
+		font-size: 2.3em;
+	}
+
+	.login-box{
+        width:90%;
+		text-align: center;  
+    }
+
+	input[type="submit"]{
+		margin: auto;
+		padding: 3%;
+		padding-left: 5%;
+		padding-right: 5%;
+	}
+}
