@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Friends</title>
+    <link rel="stylesheet" href="{{url_for('static', path='editrules.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+    <h1>Friends</h1>
+    <div class="container">
+      {% for friend in friends %}
+        <a href="/edit/{{friend['id']}}">
+          <div class="box">
+            <figure>
+              <img src="{{friend['icon']}}" style="width:100%">
+              <figcaption>{{friend["username"]}}</figcaption>
+            </figure>
+          </div>
+        </a>
+      {% endfor %}
+
+      <div class="box" title="Add friend" id="addFriendBtn">
+        <figure>
+          <img src="{{url_for('static', path='images/plus.png')}}" style="width:100%">
+          <figcaption></figcaption>
+        </figure>
+      </div>
+      
+      <a href="/">
+        <div class="box">
+          <figure>
+            <img src="{{url_for('static', path='images/door.jpg')}}" style="width:100%">
+            <figcaption>Home</figcaption>
+          </figure>
+        </div>
+      </a>
+    </div>
+
+    <div class="hidden formbox" id="addFriendForm">
+      <form method="post" action="/addFriend">
+        <h1>Add friend</h1>
+        <label for="friendName">Friend username:</label>
+        <input type="text" id="friendName" name="friendName">
+        <button type="submit" onclick="addFriend()">Add friend</button>
+      </form>
+    </div>
+
+  </body>
+  <script>
+    document.getElementById("addFriendBtn").addEventListener("click", function() {
+        var addFriendForm = document.getElementById("addFriendForm");
+        if (addFriendForm.classList.contains("hidden")) {
+          addFriendForm.classList.remove("hidden");
+          addFriendForm.classList.add("display");
+        } else {
+          addFriendForm.classList.remove("display");
+          addFriendForm.classList.add("hidden");
+        }
+    });
+
+    const div = document.querySelector('#addFriendForm');
+    const button = document.querySelector('#addFriendBtn');
+    document.addEventListener('click', (event) => {
+      const clickedOutside = !div.contains(event.target) && !button.contains(event.target);
+      if (clickedOutside) {
+        addFriendForm.classList.remove("display");
+        addFriendForm.classList.add("hidden");
+      }
+    });
+  </script>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>{{game["name"]}}</title>
+    <link rel="stylesheet" href="{{url_for('static', path='gamepage.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body>
+	<button onclick="goBack()" type="button">Back</button>
+
+	<h1>{{game["name"]}}</h1>
+	<form method="post" action="/game" id="gameStart">
+		<div class="container">
+			<div class="box">
+				<a href="#" onclick="document.getElementById('gameStart').submit();">
+					<figure>
+						<img src="{{game['icon']}}" style="width:100%">
+						<figcaption>Start</figcaption>
+					</figure>
+				</a>
+			</div>
+			<div class="formbox" id="formbox">
+				<p>{{game['description']}}</p>
+				<div class="subcontainer">
+					<div class="subbox">
+						<input type="hidden" name="gameId" value="{{game['id']}}">
+						<button id="myButton" type="button">Reset adventure</button>
+						<h3 for="incipit">Game Incipit:</h3>
+						<textarea id="incipit" name="incipit"></textarea>
+						<h3>Select language:</h3>
+						<select id="language" name="language">
+							<option value="english">English</option>
+							<option value="italian">Italian</option>
+							<option value="french">French</option>
+							<option value="spanish">Spanish</option>
+							<option value="german">German</option>
+						</select>
+					</div>
+					<div class="subbox">
+						<div id="num_players_div">
+							<h3 for="num_players">Number of Players:</h3>
+							<input type="number" id="num_players" name="num_players" min="1" max="8" value="1" onchange="updatePlayerInputs()">
+						</div>
+						<div id="player_sheets">
+							<h3>Player Sheets:</h3>
+							<textarea id="player1" name="player_sheets[]" placeholder="Player 1 Sheet"></textarea>
+						</div>
+						<input type="button" value="+" onclick="incrementNumPlayers()">
+						<input type="button" value="-" onclick="decrementNumPlayers()"><br><br>
+					</div>
+				</div>
+			</div>
+		</div>
+		<input type="hidden" name="reset" id="hiddenCheck" value="false">
+	</form>
+
+	<script>
+	function updatePlayerInputs() {
+		var num_players_input = document.getElementById("num_players");
+		var num_players = parseInt(num_players_input.value);
+		var player_sheets_div = document.getElementById("player_sheets");
+		var curr_num_players = player_sheets_div.getElementsByTagName("textarea").length;
+
+		if (num_players > curr_num_players) {
+			for (var i = curr_num_players + 1; i <= num_players; i++) {
+			var new_player_sheet = document.createElement("textarea");
+			new_player_sheet.setAttribute("id", "player" + i);
+			new_player_sheet.setAttribute("name", "player_sheets[]");
+			new_player_sheet.setAttribute("placeholder", "Player " + i + " Sheet");
+			player_sheets_div.appendChild(new_player_sheet);
+			}
+		} else if (num_players < curr_num_players) {
+			for (var i = curr_num_players; i > num_players; i--) {
+				player_sheets_div.removeChild(player_sheets_div.lastChild);
+			}
+		}
+
+		// Store num_players in local storage
+		localStorage.setItem("num_players", num_players_input.value);
+		}
+
+		window.onload = function() {
+		var num_players_input = document.getElementById("num_players");
+
+		// Get num_players from local storage and set as the value of the input
+		var num_players = localStorage.getItem("num_players");
+		if (num_players !== null) {
+			num_players_input.value = num_players;
+			updatePlayerInputs();
+		}
+	}
+
+	function incrementNumPlayers() {
+		var num_players = document.getElementById("num_players");
+		if (num_players.value < 8) {
+			num_players.value = parseInt(num_players.value) + 1;
+			updatePlayerInputs();
+		}
+	}
+	
+	function decrementNumPlayers() {
+		var num_players = document.getElementById("num_players");
+		if (num_players.value > 1) {
+			num_players.value = parseInt(num_players.value) - 1;
+			updatePlayerInputs();
+		}
+	}
+
+	function goBack() {
+		window.location.href = "/gameSelection";
+	}
+
+	var button = document.getElementById("myButton");
+	var isChecked = false;
+	var hidden = document.getElementById("hiddenCheck")
+
+	button.addEventListener("click", function() {
+	isChecked = !isChecked;
+	if (isChecked) {
+		button.setAttribute("class", "active")
+		hidden.value = "true"
+	} else {
+		button.removeAttribute("class", "active")
+		hidden.value = "false"
+	}
+	});
+
+	var selectElement = document.getElementById("language");
+    var optionName = "{{user['language']}}";
+
+    for (var i = 0; i < selectElement.options.length; i++) {
+      if (selectElement.options[i].value === optionName) {
+        selectElement.selectedIndex = i;
+        break;
+      }
+    }
+	</script>
+</body>
+</html>

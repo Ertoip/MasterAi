@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Edit {{name}}</title>
+    <link rel="stylesheet" href="{{url_for('static', path='gameSubmission.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+    <button onclick="goBack()" type="button">Back</button>
+
+    <h1>Edit {{name}}</h1>
+    <form action="/delete/{{id}}" method="post">
+      <button class="deleteButton">Delete</button>
+    </form>
+    <form action="/edit/{{id}}" method="post">
+      <p>{{message}}</p><br>
+      <label for="name">Game Name:</label><br>
+      <input type="text" id="name" name="name" value="{{name}}" required><br>
+
+      <label for="description">Game description:</label><br>
+      <textarea id="description" name="description" required>{{description}}</textarea><br>
+      
+      <label for="rules">Game Rules:</label><br>
+      <textarea id="rules" name="rules" required>{{rules}}</textarea><br>
+      
+      <label for="radioContainer">Game Icon:</label>
+      <div class="container" id="radioContainer">
+        <input type="radio" id="{{icon['key']}}" name="icon" value="{{icon['key']}}" checked="checked">
+        <label for="{{icon['key']}}"><img src="{{icon['link']}}"></label>
+        {% for image in images %}
+          <input type="radio" id="{{image['key']}}" name="icon" value="{{image['key']}}">
+          <label for="{{image['key']}}"><img src="{{image['link']}}"></label>
+        {% endfor %}
+      </div>
+
+      <input type="submit" value="Submit Game">
+    </form>
+
+    <script>
+      function goBack() {
+        window.location.href = "/editRules";
+      }
+    </script>
+  </body>
+</html>

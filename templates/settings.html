@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{user["username"]}}</title>
+    <link rel="stylesheet" href="{{url_for('static', path='gameSubmission.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+<body>
+  <button onclick="goBack()" type="button">Back</button>
+
+  <h1>{{user["username"]}}</h1>
+  <form action="/settings" method="post">
+    <label for="name">Username:</label><br>
+    <input type="text" id="name" name="name" value="{{user['username']}}" required><br>
+    <label for="name">Email:</label><br>
+    <input type="text" id="name" name="name" value="{{user['email']}}" required><br>
+    <label for="language">Default language:</label>
+    <select id="language" name="language" >
+        <option value="english">English</option>
+        <option value="italian">Italian</option>
+        <option value="french">French</option>
+        <option value="spanish">Spanish</option>
+        <option value="german">German</option>
+    </select>
+
+    <div class="container" id="radioContainer">
+      <input type="radio" id="{{icon['key']}}" name="icon" value="{{icon['key']}}" checked="checked">
+      <label for="{{icon['key']}}"><img src="{{icon['link']}}"></label>
+      {% for image in images %}
+        <input type="radio" id="{{image['key']}}" name="icon" value="{{image['key']}}">
+        <label for="{{image['key']}}"><img src="{{image['link']}}"></label>
+      {% endfor %}
+    </div>
+
+    <input type="submit" value="Save">
+    <p>{{message}}</p>    
+  </form>
+  <script>
+    function goBack() {
+      window.location.href = "/";
+    }
+
+    var selectElement = document.getElementById("language");
+    var optionName = "{{user['language']}}";
+
+    for (var i = 0; i < selectElement.options.length; i++) {
+      if (selectElement.options[i].value === optionName) {
+        selectElement.selectedIndex = i;
+        break;
+      }
+    }
+  </script>
+</body>
+</html>

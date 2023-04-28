@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Home Page</title>
+    <link rel="stylesheet" href="{{url_for('static', path='homeStyle.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+    <div class="container">
+        <a href="/gameSelection">
+            <div class="box">
+                <figure>
+                    <img src="{{url_for('static', path='images/adventurers.jpg')}}" style="width:100%">
+                    <figcaption>Start game</figcaption>
+                </figure> 
+            </div>
+        </a>
+        <a href="/addGame">
+            <div class="box">
+                <figure>
+                    <img src="{{url_for('static', path='images/mage.jpg')}}" style="width:100%">
+                    <figcaption>Add game</figcaption>
+                </figure> 
+            </div>
+        </a>
+        <a href="/editRules">
+            <div class="box">
+                <figure>
+                    <img src="{{url_for('static', path='images/mage2.jpg')}}" style="width:100%">
+                    <figcaption>Edit rules</figcaption>
+                </figure> 
+            </div>
+        </a>
+        <a href="/settings">
+            <div class="box">
+                <figure>
+                    <img src="{{icon}}" style="width:100%">
+                    <figcaption>Settings</figcaption>
+                </figure> 
+            </div>
+        </a>
+        <a href="/friends">
+            <div class="box">
+                <figure>
+                    <img src="{{url_for('static', path='images/campfire.jpg')}}" style="width:100%">
+                    <figcaption>Friends</figcaption>
+                </figure> 
+            </div>
+        </a>
+        <a href="/shop">
+            <div class="box">
+                <figure>
+                    <img src="{{url_for('static', path='images/coins.jpg')}}" style="width:100%">
+                    <figcaption>Shop</figcaption>
+                </figure> 
+            </div>
+        </a>
+        <a href="/logout">
+            <div class="box">
+                <figure>
+                    <img src="{{url_for('static', path='images/door.jpg')}}" style="width:100%">
+                    <figcaption>Logout</figcaption>
+                </figure> 
+            </div>
+        </a>
+        <a href="">
+            <div class="box">
+            </div>
+        </a>
+    </div>
+  </body>
+</html>

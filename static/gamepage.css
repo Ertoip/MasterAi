@@ -1,0 +1,161 @@
+/* Adjust header styles */
+h1 {
+    font-size: 2em;
+    text-align: center;
+    color: white;
+}
+
+
+html, body {
+    border-color: #736b5e;
+    color: #e8e6e3;
+
+    background-color: #181a1b;
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+}
+
+* {
+    scrollbar-color: #454a4d #202324;
+}
+
+/* Adjust label styles */
+label {
+    margin: 10px 0;
+    display: block;
+}
+
+input[type="submit"], button, input[type="button"]{
+	background-color: rgba(0,0,0,0);
+	color: #ffffff;
+	padding: 10px 20px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 14px;
+    border: 1px solid #444;
+}
+
+input[type="submit"]:hover, button:hover, input[type="button"]:hover {
+	background-color: #183131;
+    color: #54d7b9;
+    border-color: #2b6f65;
+}
+
+input[type="submit"]:active, button:active, input[type="button"]:active, .active{
+	background-color: #54d7b9;
+    color: white;
+    border-color: #2b6f65;
+}
+
+/* Adjust input and textarea styles */
+input[type="text"], input[type="number"], textarea {
+    width: 60%;
+    padding: 10px;
+    margin-bottom: 1em;
+    border-radius: 0.25em;
+    border: none;
+    font-size: 18px;
+    background-color: #444;
+    color: #fff;
+}
+
+select{
+    display: block;
+    width: 95%;
+    padding: 10px;
+    border-radius: 0.25em;
+    border: none;
+    font-size: 1em;
+    background-color: #444;
+    color: #fff;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+textarea{
+    width: 95%;
+    height: 20vh;
+}
+
+.container{
+    width: 99%;
+    height: 80vh;
+    padding: 0.5em;
+    gap: 3em;
+    display: flex;
+    flex-wrap:wrap;
+    justify-content:space-evenly;
+}
+
+.subcontainer{
+    width: 99%;
+    height: auto;
+    display: flex;
+}
+
+.subbox{
+    flex: 1;
+}
+
+.box {
+    width: 25em;
+    height: 25em;
+    border-radius: 4%;
+    transition: transform 0.3s ease-in-out;
+    text-align: center;
+    vertical-align:middle;
+	border: 1px solid #444;
+    filter: grayscale(66%);
+    position: relative;
+    overflow: hidden;
+}
+
+.box:hover {
+    animation: boxHover both 0.3s;
+}
+
+@keyframes boxHover {
+    from {}
+    to {
+        width: 26em;
+        height: 26em;
+        box-shadow: 1em 1em 3em black;
+        filter: grayscale(0%) saturate(125%);
+    }
+}
+
+
+.box figure {
+    position: relative;
+    margin: 0;
+}
+
+.box img {
+    display: block;
+    width: 100%;
+    height: auto;
+    z-index: 1;
+
+}
+
+.box figcaption {
+    position: absolute;
+    top: 42%;
+    left: 0;
+    right: 0;
+    padding: 0.3em;
+    margin: 0;
+    z-index: 2;
+    color: white;
+    font-size: 1.5em;
+    font-weight: bolder;
+}
+
+.formbox{
+    flex: 1;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}

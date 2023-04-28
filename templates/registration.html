@@ -14,9 +14,9 @@
 			<label for="email">Email address:</label><br>
 			<input type="email" id="email" name="email" required><br>
 			<label for="password">Password:</label><br>
-			<input type="password" id="password" name="password" required><br>
-			<label for="confirmPassword">Confirm password:</label><br>
-			<input type="password" id="confirmPassword" name="confirmPassword" required><br>
+			<input type="password" id="password" name="password" required>
+			<button type="button" onclick="togglePassword()" id="showHideButton">Show</button>
+			<br>
 			<input type="submit" value="Register">
 		</form>
 		<div class="existing-account">
@@ -25,5 +25,19 @@
 		</div>
         <p>{{message}}</p>
 	</div>
+
+	<script>
+	function togglePassword() {
+	var button = document.getElementById("showHideButton")	
+	var passwordField = document.getElementById("password");
+	if (passwordField.type === "password") {
+		button.innerHTML="Hide"
+		passwordField.type = "text";
+	} else {
+		button.innerHTML="Show"
+		passwordField.type = "password";
+	}
+	}
+	</script>
 </body>
 </html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Game Submission Page</title>
+    <link rel="stylesheet" href="{{url_for('static', path='gameSubmission.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+<body>
+  <button onclick="goBack()" type="button">Back</button>
+
+  <h1>Submit a Game</h1>
+  <form action="/addGame" method="post">
+    <p>{{message}}</p>    
+
+    <label for="name">Game Name:</label><br>
+    <input type="text" id="name" name="name" required><br>
+    <label for="description">Game description:</label><br>
+    <textarea id="description" name="description" required></textarea><br>
+    <label for="rules">Game Rules:</label><br>
+    <textarea id="rules" name="rules" required></textarea>
+    <label for="radioContainer">Game Icon:</label>
+    <div class="container" id="radioContainer">
+      {% for url in image_urls %}
+        <input type="radio" id="{{url['key']}}" name="icon" value="{{url['key']}}">
+        <label for="{{url['key']}}"><img src="{{url['link']}}"></label>
+      {% endfor %}
+    </div>
+
+    <input type="submit" value="Submit Game">
+  </form>
+  <script>
+    function goBack() {
+      window.location.href = "/";
+    }
+  </script>
+</body>
+</html>

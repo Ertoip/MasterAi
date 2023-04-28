@@ -10,3 +10,5 @@ uvicorn
 jinja2
 python-multipart
 bcrypt
+fastapi-utils
+cachetools

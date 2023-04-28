@@ -2,6 +2,7 @@ h1{
     display:flex;
     justify-content:center;
     font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    top: 0.5em;
 }
 p{
     display:flex;
@@ -9,6 +10,35 @@ p{
     font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
     font-size:1em;
 }
+
+textarea{
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    font-size:1em;
+}
+
+input[type="submit"], button, input[type="button"]{
+	background-color: rgba(0,0,0,0);
+	color: #ffffff;
+	padding: 10px 20px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 14px;
+    border: 1px solid #444;
+}
+
+input[type="submit"]:hover, button:hover, input[type="button"]:hover {
+	background-color: #183131;
+    color: #54d7b9;
+    border-color: #2b6f65;
+}
+
+input[type="submit"]:active, button:active, input[type="button"]:active, .active{
+	background-color: #54d7b9;
+    color: white;
+    border-color: #2b6f65;
+}
+
 .send{
     flex:1;    
     justify-content:space-evenly;
@@ -29,7 +59,7 @@ p{
     width:75%;
     gap: 1%;
     margin:auto;
-    margin-top: 1em;
+    margin-top: 0.4em;
 }
 
 .chat {
@@ -37,12 +67,49 @@ p{
     flex-direction: column;
     overflow: hidden;
     border: 1px solid gray;
-    border-radius: 0.3%;
+    border-radius: 10px;
     overflow-y:scroll;
-    height: 48em;
-    bottom: 5em;
-    width:95%;
+    height: 83vh;
+    bottom: 5vh;
+    width:98%;
     margin:auto;
+}
+
+.box{
+    border: 1px solid gray;
+	border-radius: 10px;
+    overflow-y:scroll;
+    height:fit-content;
+    width: 100%;
+    text-align: center;
+    resize:both;
+    margin-bottom: 0.5em;
+}
+
+.box p, .box label{
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    font-size: 1.05em;
+}
+
+.box h2{
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+
+    font-size: 2em
+}
+
+.box input, .box select{
+    display: block;
+    width: 90%;
+    padding: 10px;
+    border-radius: 0.25em;
+    border: none;
+    font-size: 1em;
+    background-color: #444;
+    color: #fff;
+    margin: auto;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+
 }
 
 .chat .assistant{
@@ -73,6 +140,25 @@ p{
     position: absolute;
     bottom: 2em;
     left: 0;
+    width: 100%;
+}
+
+.container{
+    width: 100%;
+    height: fit-content;
+    display: flex;
+}
+
+.utilityArea{
+    flex:1;
+    height: fit-content;
+    max-height: 90vh;
+    width: 100%;
+}
+
+.chatArea{
+    flex:2;
+    height: fit-content;
     width: 100%;
 }
 

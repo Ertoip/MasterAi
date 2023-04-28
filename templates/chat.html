@@ -11,36 +11,65 @@
 </head>
 <body>
     <h1>{{game}}</h1>
-    <div class="chat" id="chat">
-        {% for message in messages[1:] %}
-            <div class="{{message.role}}">
-                <p>{{message.content}}</p>
+    <div class="container">
+        <div class="utilityArea">
+            <div class="box">
+                <h2>Roll a dice:</h2>
+
+                <label for="numDice">Number of dice:</label>
+                <input type="number" id="numDice" name="numDice" min="1" max="20" value="1">
+              
+                <label for="diceInput">Type of dice:</label>
+                <select id="diceInput" name="diceInput">
+                  <option value="d4">d4</option>
+                  <option value="d6">d6</option>
+                  <option value="d8">d8</option>
+                  <option value="d10">d10</option>
+                  <option value="d12">d12</option>
+                  <option value="d20">d20</option>
+                  <option value="d100">d100</option>
+                </select>
+
+                <button onclick="rollDice()">Roll</button>
+                <p id="diceResult"></p>
             </div>
-        {% endfor %}
+        </div>
+        <div class="chatArea">
+            <div class="chat" id="chat">
+                {% for message in messages[1:] %}
+                    {% if message.role != "system" %}
+                        <div class="{{message.role}}">
+                            <p>{{message.content}}</p>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <form class="formChat" action="" onsubmit="sendMessage(event)">
+                <textarea class="chatbox" name="chat" id="inputChat" rows="1" cols="50" required></textarea>
+                <button class="send" id="send" onclick="disableSendButton()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-send" viewBox="0 -2 16 18">
+                        <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
     </div>
-    <form class="formChat" action="" onsubmit="sendMessage(event)">
-        <input class="chatbox" type="text" name="chat" id="inputChat" required>
-        <button class="send" id="send">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-send" viewBox="0 -2 16 18">
-                <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
-            </svg>
-        </button>
-    </form>
-</body>
+    
     <script>
         var messages = document.getElementById('chat')
-
+        var sendButton = document.getElementById('send')
+    
         async function postMessage(message) {
             const rawResponse = await fetch('/messages', {
                 method: 'POST',
                 headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({msg: message.toString()})
             });
             const response = await rawResponse.json();
-
+    
             var message = document.createElement('div')
             message.setAttribute("class", "assistant");
             var p = document.createElement('p')
@@ -48,8 +77,14 @@
             p.appendChild(content)
             message.appendChild(p)
             messages.appendChild(message)
+    
+            sendButton.disabled = false;
         }
-
+    
+        function disableSendButton() {
+            sendButton.disabled = true;
+        }
+    
         async function sendMessage(event) {
             event.preventDefault()
             var input = document.getElementById("inputChat")
@@ -64,9 +99,36 @@
             messages.scrollTop = messages.scrollHeight;
             data = input.value
             input.value = ''
-            await postMessage(data)  
-            messages.scrollTop = messages.scrollHeight;          
+            await postMessage(data)
+    
+            messages.scrollTop = messages.scrollHeight;
         }
 
+        function rollDice() {
+            var diceInput = document.getElementById("diceInput");
+            var diceType = diceInput.value;
+            var numDice = document.getElementById("numDice").value;
+
+            if (/^d\d+$/.test(diceType)) {
+                var i = 0;
+
+                var result = ""
+
+                while(i<numDice){
+                    var sides = diceType.split("d")[1];
+
+                    result = (Math.floor(Math.random() * sides) + 1).toString() + " " + result;
+                    i++;
+                }
+
+                var diceResult = document.getElementById('diceResult');
+                diceResult.innerText = result
+            } else {
+                var diceResult = document.getElementById('diceResult');
+                diceResult.innerText = "Dice not valid"
+            }
+
+        }
     </script>
+</body>
 </html>
