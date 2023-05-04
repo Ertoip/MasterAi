@@ -1,0 +1,193 @@
+/* Adjust header styles */
+h1 {
+    font-size: 2em;
+    text-align: center;
+    color: white;
+}
+
+
+html, body {
+    border-color: #736b5e;
+    color: #e8e6e3;
+
+    background-color: #181a1b;
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+}
+
+* {
+    scrollbar-color: #454a4d #202324;
+}
+
+.pfp{
+    width: 25em;
+    height: 25em;
+    border-radius: 4%;
+	border: 1px solid #444;
+    position: relative;
+    overflow: hidden;
+}
+
+.container{
+    width: 98%;
+    height: 80vh;
+    padding: 0.5em;
+    gap: 2em;
+    display: flex;
+    flex-wrap:wrap;
+}
+
+.pfpcontainer{
+    flex:1;
+}
+
+.subcontainer{
+    height: auto;
+    display: flex;
+    flex:9;
+}
+
+.subbox{
+    flex: 1;
+}
+
+.subbox-l{
+    flex: 2;
+}
+
+.gameContainer{
+    width: 100%;
+    height: 70vh;
+    border: 1px solid #444;
+    border-radius: 5px;
+    box-shadow: inset 0.5em 0.5em 0.5em black;
+    overflow: auto;
+    padding-top: 1em;
+    margin-bottom: 1em;
+    gap: 0.5em;
+    display: flex;
+    flex-wrap:wrap;
+    justify-content:space-evenly;
+}
+
+.deleteButton {
+	background-color: rgba(0,0,0,0);
+	color: #ffffff;
+	padding: 0.6em 1.2em;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 1em;
+    border: 1px solid #444;
+}
+
+.deleteButton:hover {
+	background-color: #183131;
+    color: red;
+    border-color: red;
+}
+
+.deleteButton:active{
+	background-color: red;
+    color: white;
+    border-color: red;
+}
+
+button{
+	background-color: rgba(0,0,0,0);
+	color: #ffffff;
+	padding: 0.6em 1.2em;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 1em;
+    border: 1px solid #444;
+}
+
+button:hover{
+	background-color: #183131;
+    color: #54d7b9;
+    border-color: #2b6f65;
+}
+
+button:active{
+	background-color: #54d7b9;
+    color: white;
+    border-color: #2b6f65;
+}
+
+.gameContainer figure {
+    position: relative;
+    margin: 0;
+}
+
+.gameContainer img {
+    display: block;
+    width: 100%;
+    height: auto;
+    z-index: 1;
+
+}
+
+.gameContainer figcaption {
+    position: absolute;
+    top: 42%;
+    left: 0;
+    right: 0;
+    padding: 0.3em;
+    margin: 0;
+    z-index: 2;
+    color: white;
+    font-size: 1.5em;
+    font-weight: bolder;
+}
+
+.box {
+    width: 18em;
+    height: 18em;
+    border-radius: 4%;
+    transition: transform 0.3s ease-in-out;
+    text-align: center;
+    vertical-align:middle;
+	border: 1px solid #444;
+    filter: grayscale(66%);
+    position: relative;
+    overflow: hidden;
+}
+
+.box:hover {
+    animation: boxHover both 0.3s;
+}
+
+@keyframes boxHover {
+    from {}
+    to {
+        width: 19em;
+        height: 19em;
+        box-shadow: 1em 1em 3em black;
+        filter: grayscale(0%) saturate(125%);
+    }
+}
+
+.container label:active{
+    animation: boxActive both 1s;
+}
+
+@keyframes boxActive {
+    50% {
+        box-shadow: 0em 0em 3em white;
+        filter: grayscale(0%) saturate(125%);
+    }
+    100% {
+        box-shadow: 0em 0em 1em white;
+        filter: grayscale(0%) saturate(125%);
+    }
+}
+
+input[type="checkbox"]:checked + label {
+    box-shadow: 0px 0px 1em white;
+    filter: grayscale(0%) saturate(125%);
+}
+
+.container input[type="checkbox"] {
+    display: none;
+}

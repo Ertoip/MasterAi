@@ -2,7 +2,6 @@ h1{
     display:flex;
     justify-content:center;
     font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-    top: 0.5em;
 }
 p{
     display:flex;
@@ -54,7 +53,7 @@ input[type="submit"]:active, button:active, input[type="button"]:active, .active
 
 .formChat{
     display:flex;
-    position: static;
+    position: relative;
     bottom: 0;
     width:75%;
     gap: 1%;
@@ -69,7 +68,7 @@ input[type="submit"]:active, button:active, input[type="button"]:active, .active
     border: 1px solid gray;
     border-radius: 10px;
     overflow-y:scroll;
-    height: 83vh;
+    height: 78vh;
     bottom: 5vh;
     width:98%;
     margin:auto;
@@ -197,4 +196,15 @@ body {
     --fbc-primary-text: #15141A;
     --fbc-secondary-text: #5B5B66;
     --fbc-font-size: 13px;
+}
+
+@media screen and (max-width: 768px) {
+    .container{
+        flex-direction:column-reverse;
+        gap: 1em;
+    }
+
+    .chatbox{
+        width:70%;
+    }
 }

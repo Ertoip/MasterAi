@@ -25,10 +25,12 @@ h2{
     display: flex;
     flex-wrap:wrap;
     column-gap: 0.5em;
+    row-gap: 1em;
     justify-content:space-evenly;
     align-items:center;
-    height: 90vh;
+    height: fit-content;
     width: 100%;
+    margin-bottom: 1em;
 }
 
 .box {
@@ -39,8 +41,6 @@ h2{
     text-align: center;
     vertical-align:middle;
 	border: 1px solid #444;
-    position: relative;
-    overflow: hidden;
 }
 
 .box img{
@@ -76,9 +76,22 @@ h2{
     }
 }
 
+.box {
+    position: relative;
+    overflow: hidden;
+}
+
 .box figure {
     position: relative;
     margin: 0;
+}
+
+.box img {
+    display: block;
+    width: 100%;
+    height: auto;
+    z-index: 1;
+
 }
 
 .box figcaption {
@@ -194,7 +207,7 @@ label {
         text-align: center;
         vertical-align: middle;
         border: 1px solid #444;
-        filter: grayscale(66%);
+        filter: brightness(50%);
     }
 
     @keyframes boxHover {
@@ -203,7 +216,7 @@ label {
             width: 21em;
             height: 21em;
             box-shadow: 1em 1em 3em black;
-            filter: grayscale(0%) saturate(125%);
+            filter: brightness(100%) saturate(125%);
         }
-    }
-}
+    }}
+    

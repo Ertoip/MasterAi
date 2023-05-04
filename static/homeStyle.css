@@ -28,13 +28,16 @@ html, body {
     text-align: center;
     vertical-align:middle;
 	border: 1px solid #444;
-    filter: grayscale(66%);
     position: relative;
     overflow: hidden;
 }
 
+.box img{
+    filter: brightness(60%);
+}
+
 .box:hover {
-    animation: boxHover both 0.3s;
+    animation: boxHover 0.3s ease-out forwards;
 }
 
 @keyframes boxHover {
@@ -43,7 +46,18 @@ html, body {
         width: 27em;
         height: 27em;
         box-shadow: 1em 1em 3em black;
-        filter: grayscale(0%) saturate(125%);
+        filter: brightness(100%) saturate(125%);
+    }
+}
+
+.box:hover img{
+    animation: imgHover 0.3s ease-out forwards;
+}
+
+@keyframes imgHover {
+    from {}
+    to {
+        filter: brightness(100%);
     }
 }
 

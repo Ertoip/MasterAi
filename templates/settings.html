@@ -11,28 +11,38 @@
 
   <h1>{{user["username"]}}</h1>
   <form action="/settings" method="post">
-    <label for="name">Username:</label><br>
-    <input type="text" id="name" name="name" value="{{user['username']}}" required><br>
-    <label for="name">Email:</label><br>
-    <input type="text" id="name" name="name" value="{{user['email']}}" required><br>
-    <label for="language">Default language:</label>
-    <select id="language" name="language" >
-        <option value="english">English</option>
-        <option value="italian">Italian</option>
-        <option value="french">French</option>
-        <option value="spanish">Spanish</option>
-        <option value="german">German</option>
-    </select>
-
-    <div class="container" id="radioContainer">
-      <input type="radio" id="{{icon['key']}}" name="icon" value="{{icon['key']}}" checked="checked">
-      <label for="{{icon['key']}}"><img src="{{icon['link']}}"></label>
-      {% for image in images %}
-        <input type="radio" id="{{image['key']}}" name="icon" value="{{image['key']}}">
-        <label for="{{image['key']}}"><img src="{{image['link']}}"></label>
-      {% endfor %}
-    </div>
-
+    <div class="flexContainer">
+      <div class="subDiv">
+        <label for="name">Username:</label><br>
+        <input type="text" value="{{user['username']}}" required readonly><br>
+        <label for="name">Email:</label><br>
+        <input type="text" value="{{user['email']}}" required readonly><br>
+        <label for="name">Credits:</label><br>
+        <input type="text" value="{{user['credits']}}" required readonly><br>
+        <label for="info">Account info:</label><br>
+        <textarea name="info" id="info" cols="30" rows="10">{{user['info']}}</textarea>
+        <label for="language">Default language:</label>
+        <select id="language" name="language" >
+            <option value="english">English</option>
+            <option value="italian">Italian</option>
+            <option value="french">French</option>
+            <option value="spanish">Spanish</option>
+            <option value="german">German</option>
+        </select>
+      </div>
+      <div class="subDiv">
+        <label for="radioContainer">Profile picture:</label>
+        <div class="container" id="radioContainer">
+          <input type="radio" id="{{icon['key']}}" name="icon" value="{{icon['key']}}" checked="checked">
+          <label for="{{icon['key']}}"><img src="{{icon['link']}}"></label>
+          {% for image in images %}
+            <input type="radio" id="{{image['key']}}" name="icon" value="{{image['key']}}">
+            <label for="{{image['key']}}"><img src="{{image['link']}}"></label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>  
+    
     <input type="submit" value="Save">
     <p>{{message}}</p>    
   </form>

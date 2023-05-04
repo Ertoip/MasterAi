@@ -96,6 +96,8 @@ textarea{
     width: 99%;
     height: auto;
     display: flex;
+    gap: 1em;
+
 }
 
 .subbox{
@@ -165,76 +167,32 @@ a {
     text-decoration: none;
 }
 
-.radioContainer{
-    width: 90%;
-    height: 50em;
-    border: 1px solid #444;
-    border-radius: 5px;
-    box-shadow: inset 0.5em 0.5em 0.5em black;
-    overflow: auto;
-    padding: 0.5em;
-    margin-bottom: 1em;
-    gap: 0.5em;
-    display: flex;
-    flex-wrap:wrap;
-    justify-content:space-evenly;
-}
-
-.radioContainer input[type="radio"] {
-    display: none;
-}
-
-.radioContainer label {
-    display: block;
-    width: 17em;
-    height: 17em;
-    border-radius: 4%;
-    transition: transform 0.3s ease-in-out;
-	border: 1px solid #444;
-    overflow: hidden;
-}
-
-.radioContainer label img {
-    display: block;
-    width: 100%;
-    height: 100%;
-}
-
-.radioContainer label:hover{
-    animation: radioHover both 0.3s;
-}
-
-@keyframes radioHover {
-    from {}
-    to {
-        width: 18em;
-        height: 18em;
-        filter: grayscale(0%) saturate(125%);
-    }
-}
-
-.radioContainer label:active{
-    animation: radioActive both 1s;
-}
-
-@keyframes radioActive {
-    50% {
-        box-shadow: 0em 0em 3em white;
-        filter: grayscale(0%) saturate(125%);
-    }
-    100% {
-        box-shadow: 0em 0em 1em white;
-        filter: grayscale(0%) saturate(125%);
-    }
-}
-
-.radioContainer input[type="radio"]:checked + label {
-    box-shadow: 0px 0px 1em white;
-    filter: grayscale(0%) saturate(125%);
-}
-
 @media screen and (max-width: 768px) {
     .subcontainer{
         flex-direction: column;
     }
+}
+
+.deleteButton {
+	background-color: rgba(0,0,0,0);
+	color: #ffffff;
+	padding: 10px 20px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 14px;
+    border: 1px solid #444;
+    margin-left: 0.5em;
+}
+
+.deleteButton:hover {
+	background-color: #183131;
+    color: red;
+    border-color: red;
+}
+
+.deleteButton:active{
+	background-color: red;
+    color: white;
+    border-color: red;
 }

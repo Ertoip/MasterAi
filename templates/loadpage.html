@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>{{game["name"]}}</title>
+    <link rel="stylesheet" href="{{url_for('static', path='loadpage.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body>
+	<button onclick="goBack()" type="button">Back</button>
+
+	<h1>{{game["name"]}}</h1>
+
+	<form action="/deleteSession/{{game['id']}}" method="post">
+		<button class="deleteButton">Delete</button>
+	</form>
+	<form method="post" action="/resume" id="gameStart">
+		<div class="container">
+			<div class="box">
+				<a href="#" onclick="document.getElementById('gameStart').submit();">
+					<figure>
+						<img src="{{game['icon']}}" style="width:100%">
+						<figcaption>Start</figcaption>
+					</figure>
+				</a>
+			</div>
+			<div class="formbox" id="formbox">
+				<h3>Game description:</h3>
+				<p>{{rules['description']}}</p>
+				<div class="subcontainer">
+					<div class="subbox">
+						<input type="hidden" name="gameId" value="{{game['id']}}">
+						<h3>Session incipit:</h3>
+						<p>{{game['description']}}</p>
+						<h3>Select language:</h3>
+                        <p>{{game['language']}}</p>
+					</div>
+					<div class="subbox">
+						<div id="num_players_div">
+							<h3 for="num_players">Number of Players:</h3>
+							<p>{{game['numPlayers']}}</p>
+						</div>
+						<div id="player_sheets">
+							{% for n in range(game['numPlayers']) %}
+								<h3>Player {{n+1}}:</h3>
+								<p>{{game['playerSheets'][n]}}</p>
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<script>
+		function goBack() {
+			window.location.href = "/loadGames";
+		}
+	</script>
+</body>
+</html>

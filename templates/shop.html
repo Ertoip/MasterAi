@@ -6,32 +6,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
-    <h1>Select a game</h1>
+    <h1>Shop</h1>
+    <h2>You own {{credits}} credits</h2>
     <div class="container">
-        <a href="">
-            <div class="box">
-                <figure>
-                    <img src="{{url_for('static', path='images/coins.jpg')}}" style="width:100%">
-                    <figcaption>5€</figcaption>
-                </figure> 
-            </div>
+        <a href="#" id="buy1">
+          <div class="box">
+              <figure>
+                  <img src="{{url_for('static', path='images/coins.jpg')}}" style="width:100%">
+                  <figcaption>1€<br>70 credits</figcaption>
+              </figure> 
+          </div>
         </a>
-        <a href="">
-            <div class="box">
-                <figure>
-                    <img src="{{url_for('static', path='images/money.jpg')}}" style="width:100%">
-                    <figcaption>10€</figcaption>
-                </figure> 
-            </div>
+
+        <form action="/buy" method="post" id="form1">
+          <input type="hidden" name="product" value="1">
+        </form>
+
+        <a href="#" id="buy2">
+          <div class="box">
+              <figure>
+                  <img src="{{url_for('static', path='images/money.jpg')}}" style="width:100%;">
+                  <figcaption>5€<br>400 credits</figcaption>
+              </figure> 
+          </div>
         </a>
-        <a href="">
+
+        <form action="/buy" method="post" id="form2">
+          <input type="hidden" name="product" value="2">
+        </form>
+        
+        <a href="#" id="buy3">
             <div class="box">
                 <figure>
                     <img src="{{url_for('static', path='images/treasure.jpg')}}">
-                    <figcaption>20€</figcaption>
+                    <figcaption>10€<br>900 credits</figcaption>
                 </figure> 
             </div>
         </a>
+
+        <form action="/buy" method="post" id="form3">
+          <input type="hidden" name="product" value="3">
+        </form>
 
         <a href="/">
           <div class="box">
@@ -42,5 +57,23 @@
           </div>
         </a>
     </div>
+    <script>
+      document.getElementById("buy1").addEventListener("click", function(event) {
+        event.preventDefault();
+        console.log("pressed")
+        const form = document.getElementById("form1")
+        form.submit();
+      });
+      document.getElementById("buy2").addEventListener("click", function(event) {
+        event.preventDefault();
+        const form = document.getElementById("form2")
+        form.submit();
+      });
+      document.getElementById("buy3").addEventListener("click", function(event) {
+        event.preventDefault();
+        const form = document.getElementById("form3")
+        form.submit();
+      });
+    </script>
   </body>
 </html>

@@ -63,7 +63,6 @@ input[type="submit"]:active, button:active{
     border-color: red;
 }
 
-
 /* Adjust input and textarea styles */
 input[type="text"], textarea {
     width: 30%;
@@ -120,19 +119,6 @@ textarea{
     animation: boxHover both 0.3s;
 }
 
-select{
-    display: block;
-    width: 30%;
-    padding: 10px;
-    border-radius: 0.25em;
-    border: none;
-    font-size: 1em;
-    background-color: #444;
-    color: #fff;
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-}
-
 @keyframes boxHover {
     from {}
     to {
@@ -172,4 +158,40 @@ html, body {
 
 * {
     scrollbar-color: #454a4d #202324;
+}
+
+select{
+    display: block;
+    width: 30%;
+    padding: 10px;
+    border-radius: 0.25em;
+    border: none;
+    font-size: 1em;
+    background-color: #444;
+    color: #fff;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+.flexContainer{
+    display: flex;
+    width: 100%;
+}
+
+.subDiv{
+    flex: 1;
+}
+
+.subDiv input[type="text"], textarea, .container input[type="radio"], select {
+    width: 95%;
+}
+
+@media screen and (max-width: 768px) {
+    .container{
+        height: 50em;
+    }
+
+    .flexContainer{
+        flex-direction: column;
+    }
 }

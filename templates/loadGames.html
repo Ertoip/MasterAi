@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Select game</title>
+    <title>Load game</title>
     <link rel="stylesheet" href="{{url_for('static', path='gameSelection.css')}}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
-    <h1>Select a game</h1>
-    <h2>Your games</h2>
+    <h1>Load a game</h1>
+    <h2>Offline</h2>
     <div class="container">
       {% for game in games %}
-        <a href="/gamePage/{{game['id']}}">
+        <a href="/loadPage/{{game['id']}}">
           <div class="box">
             <figure>
                 <img src="{{game['icon']}}" style="width:100%">
@@ -29,19 +29,8 @@
         </div>
       </a>
     </div>
-    <h2>Shared</h2>
+    <h2>Online</h2>
     <div class="container">
-      {% for game in shared %}
-        <a href="/sharedPage/{{game['id']}}">
-          <div class="box">
-            <figure>
-                <img src="{{game['icon']}}" style="width:100%">
-                <figcaption>{{game["name"]}}</figcaption>
-            </figure> 
-          </div>
-        </a>
-      {% endfor %}
-
       <a href="/">
         <div class="box">
             <figure>
