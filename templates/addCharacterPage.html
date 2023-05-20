@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Add character</title>
+    <link rel="stylesheet" href="{{url_for('static', path='gameSubmission.css')}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+<body>
+  <button onclick="goBack()" type="button">Back</button>
+
+  <h1>{{user}} add character for {{session}}</h1>
+  <form action="/addCharacter/{{id}}" method="post">
+    <p>{{message}}</p>    
+
+    <label for="name">Character name:</label><br>
+    <input type="text" id="name" name="name" required><br>
+    <label for="sheet">Character sheet:</label><br>
+    <textarea id="sheet" name="sheet" required></textarea><br>
+
+    <input type="submit" value="Add character">
+  </form>
+  <script>
+    function goBack() {
+      window.location.href = "/loadGames";
+    }
+  </script>
+</body>
+</html>

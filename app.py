@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Request, Depends, HTTPException, status, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime, timedelta
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import  CryptContext
 from pydantic import BaseModel
 from mangum import Mangum
@@ -13,12 +13,13 @@ import uvicorn
 import openai
 from hidden import keys
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
-import os
+from boto3.dynamodb.conditions import Key
 from typing import Annotated, Optional
 import re
 import uuid
 from cachetools import TTLCache
+import json
+import tiktoken
 
 #fastapi init
 app = FastAPI()
@@ -50,9 +51,10 @@ sessionTable = dynamodb.Table("storedGames")
 
 table = dynamodb.Table("MasterAiUsers")
 
-#aws s3
+#aws s3 and dns
 session = boto3.session.Session(region_name='eu-west-3')
 s3 = session.client('s3', config= boto3.session.Config(signature_version='s3v4'))
+
 links = []
 cache = TTLCache(maxsize=100, ttl=3600)  # Cache for 1 hour
 
@@ -127,17 +129,19 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-#function to load images
-def loadImage(bucket, key, cache = cache):
+
+
+def loadImage(bucket, key, distribution_domain_name="d3rmgiua9ij9dy.cloudfront.net", cache = cache):
     url = cache.get(key)
     if url is None:
-        # Generate a presigned URL for the image in S3
-        url = s3.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': key})
 
-        # Cache the URL
+        # Add the CloudFront distribution domain name to the signed URL
+        url = f"https://{distribution_domain_name}/{key}"
+
+        # Cache the signed URL
         cache[key] = url
-    
-    # Download the image
+        
+    # Return the signed URL
     return url
 
 #update credits
@@ -160,11 +164,11 @@ def removeCredits(token, creditsToRemove=1):
     return new_credits
 
 #append item to db list
-def appendItem(id, message):
+def appendItem(id, message, table=sessionTable, item='chat'):
     # Use the UpdateItem method to append the new item to the list
     response = sessionTable.update_item(
         Key={'id': id},
-        UpdateExpression='SET chat = list_append(chat, :new_item)',
+        UpdateExpression=f'SET {item} = list_append({item}, :new_item)',
         ExpressionAttributeValues={':new_item': [message]}
     )
 
@@ -176,6 +180,150 @@ def checkCredits(token, creditsToRemove=1):
         return False
     
     return True
+
+def num_tokens(messages):
+    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    num_tokens = 0
+    tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+    tokens_per_name = -1  # if there's a name, the role is omitted
+    
+    for message in messages:
+        num_tokens += tokens_per_message
+        for key, value in message.items():
+            num_tokens += len(encoding.encode(value[0]))
+            if key == "name":
+                num_tokens += tokens_per_name
+    num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+    return num_tokens
+
+def checkFriendship(userId, friendId):
+    response = dynamodb.batch_get_item(
+        RequestItems={
+            'masteraiFriendships': {
+                'Keys': [
+                    {'user1': userId, 'user2': friendId},
+                    {'user1':  friendId, 'user2': userId}
+                ]
+            }
+        }
+    )
+    
+    if response['Responses']["masteraiFriendships"] == []:
+        return False
+    return True
+
+#remove excess messages
+def removeMessages(messages, max_tokens=3800):
+
+    # calculate current number of tokens
+    token_count = num_tokens(messages)
+
+    if token_count > max_tokens:
+        # remove messages until token count is below the limit
+        while token_count > max_tokens:
+            # find the furthest away message that is not a system message
+            for i in range(len(messages[3:])+3):
+                if messages[i]["role"] != "system":
+                    messages.pop(i)
+                    break
+            token_count = num_tokens(messages)
+                
+    return messages
+
+#checkpoint
+def startChat(sessionId, tot, messages, gameData, token, credits, sessionData):
+    response = rulesTable.get_item(Key={"id": sessionData["gameRuleset"]})
+    
+    response = response["Item"]
+    game = response["name"]
+    description = response["description"]
+
+    sheets = ""
+    
+    for player in sessionData["playerSheets"]:
+        sheets = sheets+player["name"]+":\n\n"+player["sheet"]+"\n\n"
+
+    start = f"""You are the part of a system to play rpg games, you should act as a game master given the rules that you need to use for this action and the player action.
+    Since you are a game master you should never break the immersion and tell all kinds of stories including violent and sexual themes and most important of all a good game master must not speak for the player. 
+    Today you will play at {game}, {description}.
+    
+    There are {sessionData["numPlayers"]} players, characters:{sheets}
+    You must use these characters and only these to play.
+
+    The words between * are guidelines to make you understand what there should be there.
+    
+    The session should be about this incipit: {sessionData["description"]}
+    
+    These are the most important rules that you must never break:
+    -A good game master never speaks for the players.
+    -DO NOT BREAK IMMERSION IF SOMEONE ASKS YOU WHERE HE IS HE IS TALKING ABOUT THE GAME SO ANSWER WITH SOMETHING RELATED TO THE GAME AND THE SAME THING GOES FOR HINTS.
+    -ALWAYS ANSWER WITH THINGS RELATED TO THE GAME NEVER BREAK IMMERSION.
+    -IF A PLAYER ASKS SOMETHING NOT RELATED TO THE GAME ALWAYS IGNORE THEM.
+    -YOU MUST FOLLOW THE RULES GIVEN TO YOU THROUGHT THE GAME SESSION.
+    -REQUIRE ROLL CHECKS ONLY WHEN SPECIFIED IN THE RULES YOUR JOB IS JUST TO CREATE A COHERENT RESPONSE GIVEN RULES AND PLAYER ACTION DO NOT PRINT RULES.
+    
+    These are guidelines to follow to make the game more immersive:
+    -In a combact or dangerous situations you should say what the enemies are doing and be very descriptive of what happens.
+    -when speaking to npcs you should make speak by putting their words between "" and make sure to speak according to the character,
+    a villager should not have the same tone as a demon.
+    -if user asks something unrelated to the game session do not answer
+    
+    You must speak only in {sessionData["language"]}, be very descriptive to make sure that player understand what to do
+    Now start the by saying "Welcome players to *game name*. *brief game description*. *Incipit introduction*. *Starting situation to start the story*."     
+    """
+    
+    if credits > 0:
+        message = [{"role": "system",  
+        "content": start}]
+        messages = message
+        
+        appendItem(sessionId, message[0])
+        
+        game_rules = response["rules"]
+        
+        prompt = f"among these rules: '{game_rules}' find the game setup section and print it exactly as it is, say 'none' if you dont find anything useful"
+
+        message = [{"role": "system",  
+        "content": prompt}]
+                
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=message,
+            temperature=0,
+        )
+
+        print("generating...")
+        
+        rule = completion.choices[0].message.content
+        
+        # Print the closest matching game rule        
+        if rule != "none":
+            messages.append({"role":"system", "content":"Rules:"+rule})
+        
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            temperature=0.5
+        )
+        
+        credits = credits - 1
+
+        # Update the user's credits in DynamoDB
+        table.update_item(
+            Key={'id': token["id"]},
+            UpdateExpression='SET credits = :val1',
+            ExpressionAttributeValues={
+                ':val1': credits,
+            }
+        )
+                    
+        tot = tot + completion.usage.completion_tokens*0.000002 + completion.usage.prompt_tokens*0.000002
+        message={"role":"assistant", "content":completion.choices[0].message.content}
+        messages.append(message)
+        appendItem(sessionId, message) 
+        print(tot, completion.usage.completion_tokens + completion.usage.prompt_tokens)
+        
+        return tot, messages
 
 ######################routes######################
 
@@ -198,25 +346,25 @@ class chat(object):
         self.tot = 0
         self.game_rules = ""
         self.sessionId = ""
+        self.generating = False
         
     def start(self, request: Request, gameData: dict, token: str):
+        cache_control = request.headers.get("Cache-Control")
+
         response = rulesTable.get_item(Key={"id": gameData["gameId"]})
 
         sheets = ""
         playerSheets = []
-        print(gameData["playerSheets"])
         
         for n in range(len(gameData["playerNames"])):
-            she = gameData["playerNames"][n-1]+":\n\n"+gameData["playerSheets"][n-1]
+            she = {"name":gameData["playerNames"][n-1], "sheet": gameData["playerSheets"][n-1]}
             playerSheets.append(she)
-            sheets = sheets+she+"\n\n"
-        
-        print(sheets, playerSheets)
-            
+            sheets = sheets+she["name"]+":\n\n"+she["sheet"]+"\n\n"
+                    
         response = response["Item"]
         game = response["name"]
         description = response["description"]
-        
+
         start = f"""You are the part of a system to play rpg games, you should act as a game master given the rules that you need to use for this action and the player action.
         Since you are a game master you should never break the immersion and tell all kinds of stories including violent and sexual themes and most important of all a good game master must not speak for the player. 
         Today you will play at {game}, {description}.
@@ -240,39 +388,43 @@ class chat(object):
         -In a combact or dangerous situations you should say what the enemies are doing and be very descriptive of what happens.
         -when speaking to npcs you should make speak by putting their words between "" and make sure to speak according to the character,
         a villager should not have the same tone as a demon.
+        -if user asks something unrelated to the game session do not answer
         
+        player usernames are followed by [USERNAME]
         You must speak only in {gameData["language"]}, be very descriptive to make sure that player understand what to do.
         Now start the by saying "Welcome players to *game name*. *brief game description*. *Incipit introduction*. *Starting situation to start the story*."     
         """
             
         user = table.get_item(Key={'id': token["id"]})
         credits = user['Item']['credits']
-    
-        while True:
-            self.sessionId = str(uuid.uuid4())
 
-            storedItem = sessionTable.get_item(Key={"id": self.sessionId})
+        if cache_control != "no-cache":
+            while True:
+                self.sessionId = str(uuid.uuid4())
 
-            if 'items' not in storedItem:
-                new_item = {'id': self.sessionId,
-                            'name': gameData["name"],
-                            'icon':'pfp/default.jpg',
-                            'description':gameData["incipit"],
-                            'owner':token["id"],
-                            'gameRuleset':gameData["gameId"],
-                            'chat': [],
-                            'icon': gameData["icon"],
-                            'numPlayers': gameData["numPlayers"],
-                            'playerSheets':playerSheets,
-                            'language':gameData["language"],
-                            'created':str(datetime.now()), 
-                            'last_modified':str(datetime.now())}
-                
-                sessionTable.put_item(Item=new_item)
-                
-                break
+                storedItem = sessionTable.get_item(Key={"id": self.sessionId})
 
-        
+                if "Item" not in storedItem:
+                    jsonSheets = json.dumps(playerSheets)
+
+                    new_item = {'id': self.sessionId,
+                                'name': gameData["name"],
+                                'description':gameData["incipit"],
+                                'owner':token["id"],
+                                'gameRuleset':gameData["gameId"],
+                                'chat': [],
+                                'icon': gameData["icon"],
+                                'numPlayers': gameData["numPlayers"],
+                                'playerSheets':jsonSheets,
+                                'language':gameData["language"],
+                                'created':str(datetime.now()), 
+                                'last_modified':str(datetime.now())}
+                    
+                    sessionTable.put_item(Item=new_item)
+                    
+                    break
+
+            
         if credits > 0:
             message = [{"role": "system",  
             "content": start}]
@@ -282,13 +434,11 @@ class chat(object):
             
             self.game_rules = response["rules"]
             
-            prompt = f"among these rules: '{self.game_rules}' find the game setup section and print it exactly as it is"
+            prompt = f"among these rules: '{self.game_rules}' find the game setup section and print it exactly as it is, say none if you dont find anything useful"
 
             message = [{"role": "system",  
             "content": prompt}]
-            
-            appendItem(self.sessionId, message[0])
-            
+                        
             completion = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=message,
@@ -325,34 +475,198 @@ class chat(object):
             self.messages.append(message)
             appendItem(self.sessionId, message) 
             print(self.tot, completion.usage.completion_tokens + completion.usage.prompt_tokens)
-    
-            return templates.TemplateResponse("chat.html", {"request": request,"game": game, "id":gameData["gameId"], "credits":credits, "messages": self.messages, "url":"gamePage"})
+        
+            return templates.TemplateResponse("chat.html", {"request": request,
+                                                            "game": game, 
+                                                            "id":gameData["gameId"], 
+                                                            "credits":credits, 
+                                                            "messages": self.messages, 
+                                                            "url":"gamePage",
+                                                            "numPlayers":gameData["numPlayers"],
+                                                            "players": playerSheets})
         
         #ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad
-        return templates.TemplateResponse("chat.html", {"request": request,"game": game, "id":gameId, "credits":"This should start and ad", "messages": self.messages, "url":"gamePage"})
+        return templates.TemplateResponse("chat.html", {"request": request,
+                                                        "game": game, 
+                                                        "id":gameData["gameId"], 
+                                                        "credits":"This should start and ad", 
+                                                        "messages": self.messages, 
+                                                        "url":"gamePage",
+                                                        "numPlayers":gameData["numPlayers"],
+                                                        "players": playerSheets})
+
+    def initOnline(self, gameData: dict, token: str):
+        #generate the first player with game owner players will be added on first access to session
+        playerSheets = [{"name":gameData["ownerName"], "sheet": gameData["ownerSheet"], "id":token["id"]}]
+        jsonSheets = json.dumps(playerSheets)
+        friends = [{"id":token["id"], "ready":False}]
+        
+        for n in range(len(gameData["friends"])):
+            if checkFriendship(token["id"], gameData["friends"][n]) == False:
+                gameData["friends"][n].pop()
+            else:
+                friends.append({"id":gameData["friends"][n], "ready":False})
+                
+        friends = json.dumps(friends)
+
+        numplayers = len(gameData["friends"])+1
+        
+        subSessions=[]
+        
+        while True:
+            self.sessionId = str(uuid.uuid4())
+
+            storedItem = sessionTable.get_item(Key={"id": self.sessionId})
+
+            if "Item" not in storedItem:
+                for friend in gameData["friends"]:
+                    #every user has a subsession that is connected to the main one so that when fetching sessions you can get it easily in the loadpage
+                    while True:
+                        subSessId = str(uuid.uuid4())
+
+                        storedItem = sessionTable.get_item(Key={"id": subSessId})
+                        
+                        if "Item" not in storedItem:
+
+                            item = {
+                                'id': subSessId,
+                                'owner':friend,
+                                'mainSession': self.sessionId
+                            }
+                            sessionTable.put_item(Item=item)
+                            
+                            subSessions.append(subSessId)
+                            
+                            break
+
+                new_item = {'id': self.sessionId,
+                            'name': gameData["name"],
+                            'description':gameData["incipit"],
+                            'owner':token["id"],
+                            'gameRuleset':gameData["gameId"],
+                            'chat': [],
+                            'icon': gameData["icon"],
+                            'numPlayers': numplayers,
+                            'friends':friends,
+                            'subSession':subSessions,
+                            'language':gameData["language"],
+                            'playerSheets': jsonSheets,
+                            'created':str(datetime.now()),
+                            'currentChat': '',
+                            'finishedChat': '',
+                            'last_modified':str(datetime.now())}
+                
+                sessionTable.put_item(Item=new_item)
+                
+                break
+        
+        return RedirectResponse(f"/loadSession/{self.sessionId}", status_code=status.HTTP_302_FOUND)
+
 
     def resume(self, request: Request, gameData: dict, token: str):
         response = sessionTable.get_item(Key={"id": gameData["gameId"]})
-
-        if "Item" in response and response["Item"]["owner"] == token["id"]:
-            response = response["Item"]
-            user = table.get_item(Key={"id": token["id"]})
-
-            if "Item" in user:
-                user = user["Item"]
-                self.messages = response["chat"]
-                print(self.messages)
-                print(self.messages[0])
-
-                self.sessionId = gameData["gameId"]
-            
-                return templates.TemplateResponse("chat.html", {"request": request,"game": response["name"], "id":gameData["gameId"], "credits":user["credits"], "messages": self.messages, "url":"loadPage"})
         
-        return RedirectResponse('/addGame/'+message, status_code=status.HTTP_302_FOUND)
+        #check if item exists
+        if "Item" in response:
+            response = response["Item"]
+            friends = []
+            online = False
+            response["playerSheets"] = json.loads(response["playerSheets"])
+
+            #check if it is online session 
+            if "friends" in response:
+                friendStatus = json.loads(response["friends"])
+                all_ready = True  
+                
+                for friend in friendStatus:
+                    friends.append(friend["id"])
+                    if friend["id"] == token["id"]:
+                        friend["ready"] = True
+                    elif not friend.get("ready", False):
+                        all_ready = False  
+                        
+                sessionTable.update_item(
+                    Key={'id': gameData["gameId"]},
+                    UpdateExpression='SET friends = :val1',
+                    ExpressionAttributeValues={':val1': json.dumps(friendStatus)}
+                )
+
+            if response["owner"] == token["id"] or token["id"] in friends:
+                user = table.get_item(Key={"id": token["id"]})
+
+                if "Item" in user:
+                    user = user["Item"]
+
+                    self.messages = response["chat"]
+
+                    self.sessionId = gameData["gameId"]
+                    
+                    #check if it is an online session
+                    if "friends" in response:
+                        online = True
+                        
+                        friendStatus = json.loads(response["friends"])
+
+                        if not all_ready:
+                            return RedirectResponse(f"/loadGames", status_code=status.HTTP_302_FOUND)
+                        
+                        for friend in friendStatus:
+                            # Get the user info from DynamoDB
+                            userFriend = table.get_item(Key={"id": friend["id"]})["Item"]
+                            
+                            sheet = next(sheet for sheet in response["playerSheets"] if sheet["id"] == friend["id"])
+                            sheet["username"] = userFriend["username"]
+                            sheet["owner"] = False
+                            
+                            if response["owner"] == sheet["id"]:
+                                sheet["owner"] = True
+                    
+                        if response["chat"] == []:
+                            
+                            self.tot, self.messages = startChat(self.sessionId, self.tot, self.messages, gameData, token, user["credits"], response)
+                        
+                        
+                        for i in range(len(self.messages)):
+                            if self.messages[i]["role"] == "user": 
+                                message = self.messages[i]["content"]
+                                parts = message.split("[USERNAME]")
+                            
+
+                                # Store the split parts in a new variable or update the existing message
+                                self.messages[i]["content"] = parts
+                        
+                        ms = self.messages
+                        if len(self.messages)>4:     
+                            ms = ms[0:-(int(response["numPlayers"])+1)]
+                        
+                        return templates.TemplateResponse("chat.html", {"request": request,
+                                                "game": response["name"], 
+                                                "id":gameData["gameId"], 
+                                                "credits":user["credits"],
+                                                "uid":token["id"],
+                                                "messages": ms,
+                                                "url":"loadPage",
+                                                "numPlayers":response["numPlayers"],
+                                                "players":response["playerSheets"],
+                                                "online":online})
+
+                    return templates.TemplateResponse("chat.html", {"request": request,
+                                                                    "game": response["name"], 
+                                                                    "id":gameData["gameId"], 
+                                                                    "credits":user["credits"],
+                                                                    "uid":token["id"],
+                                                                    "messages": self.messages,
+                                                                    "url":"loadPage",
+                                                                    "numPlayers":response["numPlayers"],
+                                                                    "players":response["playerSheets"],
+                                                                    "online":online})
+    
+        return RedirectResponse(f"/loadGames", status_code=status.HTTP_302_FOUND)
 
     def message(self, Message: message, token: str):
         
-        if checkCredits(token["id"]):
+        if checkCredits(token["id"]) and not self.generating:
+            self.generating = True
             # first part to get the rule
             ms = Message.msg
 
@@ -378,15 +692,16 @@ class chat(object):
             # second part return the result    
             ms = {"role":"user", "content":ms}
             self.messages.append(ms)
-            appendItem(self.sessionId, ms)
 
             if rule != "none":
                 self.messages.append({"role":"system", "content":"Rules:"+rule})
             
             # remove messages with "system" role between third and last two messages
-            messages_to_remove = [msg for msg in self.messages[3:-2] if msg["role"] == "system"]
+            messages_to_remove = [msg for msg in self.messages[3:-3] if msg["role"] == "system"]
             for msg in messages_to_remove:
-                self.messages.remove(msg)
+                self.messages.remove(msg)    
+            
+            self.messages = removeMessages(self.messages)
             
             completion = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo", 
@@ -398,35 +713,163 @@ class chat(object):
             
             self.tot = completion.usage.completion_tokens*0.000002 + completion.usage.prompt_tokens*0.000002
             print(self.tot, completion.usage.completion_tokens + completion.usage.prompt_tokens)
-                    
+            
+            appendItem(self.sessionId, ms)
             ms = completion.choices[0].message.content
             self.messages.append({"role":"assistant", "content": ms})
             appendItem(self.sessionId, {"role":"assistant", "content": ms})
 
+            self.generating = False
             return ms, credits
         
         #ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad
         ms = ""
         return ms, "This should start an ad"
 
+    
+    def addMessage(self, Message: message, id:str, token: str):
+                
+        session = sessionTable.get_item(Key={"id": id})
+                
+        session = session["Item"]
+
+        try:
+            session['currentChat'] = json.loads(session['currentChat'])
+        except:
+            session['currentChat'] = []
+            
+        found_user = False
+        
+        response = table.get_item(Key={'id': token["id"]})
+        credits = response['Item']['credits']
+ 
+        if credits > 0:
+            
+            for sess in session['currentChat']:         
+                if sess["id"] == token['id']:
+                    found_user = True
+                    break
+            
+            if not found_user:
+                session["playerSheets"] = json.loads(session["playerSheets"])
+                player = None
+                for pla in session["playerSheets"]:
+                    if pla["id"] == token["id"]:
+                        player = pla
+                        break
+
+                session['currentChat'].append({'message': Message.msg, 'id': token["id"], "name":player["name"]})
+                sessionTable.update_item(
+                    Key={'id': id},
+                    UpdateExpression='SET currentChat = :val1',
+                    ExpressionAttributeValues={':val1': json.dumps(session['currentChat'])}
+                )
+                
+                credits = removeCredits(token["id"])
+            
+            print(len(session['currentChat']))
+            if len(session['currentChat']) >= session['numPlayers']:
+                # first part to get the rule
+                ms = ''
+                messageList = []
+                                
+                for message in session['currentChat']:
+                    ms = ms+"\n"+message["name"] + ": "+message["message"]
+                    messageList.append({"role":"user", "content":message["name"] + "[USERNAME]" + message["message"]})
+
+                prompt = f"""You are part of a system to play role play games, your job is given a situation to look through the rules of the game we are currently
+                playing and tell me if there is an applicable rule for this situation and which is it by saying the name of the rule and the rule as it is written. 
+                Given the situation '{ms}', print out the rules needed in this situation '{self.game_rules}'.
+                If there is no applicable rule say just 'none' and nothing else"""
+
+                message = [{"role": "system",  
+                            "content": prompt}]
+                
+                print("received")
+                
+                completion = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=message,
+                    temperature=0
+                )
+                
+                self.tot = completion.usage.completion_tokens*0.000002 + completion.usage.prompt_tokens*0.000002        
+                rule = completion.choices[0].message.content
+                
+                # second part return the result    
+                self.messages.extend(messageList)
+
+                if rule != "none":
+                    self.messages.append({"role":"system", "content":"Rules:"+rule})
+                
+                # remove messages with "system" role between third and last two messages
+                messages_to_remove = [msg for msg in self.messages[3:-6] if msg["role"] == "system"]
+                for msg in messages_to_remove:
+                    self.messages.remove(msg)    
+                
+                self.messages = removeMessages(self.messages)
+                                
+                completion = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo", 
+                    messages=self.messages,
+                    temperature=0.5,
+                )
+                
+                self.tot = completion.usage.completion_tokens*0.000002 + completion.usage.prompt_tokens*0.000002
+                print(self.tot, completion.usage.completion_tokens + completion.usage.prompt_tokens)
+                
+                for item in messageList:
+                    appendItem(id, item)
+                    
+                ms = completion.choices[0].message.content
+                self.messages.append({"role":"assistant", "content": ms})
+                appendItem(id, {"role":"assistant", "content": ms})
+                session['currentChat'].append({'message': ms, 'id': token["id"]})
+
+                sessionTable.update_item(
+                    Key={'id': id},
+                    UpdateExpression='SET finishedChat = :val1, currentChat = :val2',
+                    ExpressionAttributeValues={':val1': json.dumps(session['currentChat']), ':val2': ""}
+                )
+                
+            return credits, found_user
+                        
+        #ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad
+        ms = ""
+        return ms, "This should start an ad"
 
 ct = chat()
 
 @app.post('/game', response_class=HTMLResponse)
 async def get(request: Request, token: str = Depends(get_current_active_user)):
     form_data = await request.form()
+    session = form_data.get("session")
+    if session == "local":
+        gameData = {
+            "gameId": form_data.get("gameId"),
+            "incipit": form_data.get("incipit"),
+            "numPlayers": form_data.get("num_players"),
+            "playerNames": form_data.getlist("names"),
+            "playerSheets": form_data.getlist("sheets"),
+            "name": form_data.get("name"),
+            "language": form_data.get("language"),
+            "icon": form_data.get("icon")
+        }
+        
+        return ct.start(request, gameData, token)
+
     gameData = {
         "gameId": form_data.get("gameId"),
         "incipit": form_data.get("incipit"),
-        "numPlayers": form_data.get("num_players"),
-        "playerNames": form_data.getlist("names"),
-        "playerSheets": form_data.getlist("sheets"),
+        "friends": form_data.getlist("friends"),
         "name": form_data.get("name"),
         "language": form_data.get("language"),
-        "icon": form_data.get("icon")
+        "icon": form_data.get("icon"),
+        "ownerName": form_data.get("ownerName"),
+        "ownerSheet": form_data.get("ownerSheet")
     }
     
-    return ct.start(request, gameData, token)
+    return ct.initOnline(gameData, token)        
 
 @app.post('/resume', response_class=HTMLResponse)
 async def resume(request: Request, token: str = Depends(get_current_active_user)):
@@ -441,6 +884,50 @@ async def resume(request: Request, token: str = Depends(get_current_active_user)
 async def post_message(Message: message, token: str = Depends(get_current_active_user)):
     return ct.message(Message, token)
 
+@app.post("/addMessageSession/{id}")
+async def post_add_message(Message: message, id: str, token: str = Depends(get_current_active_user)):
+    return ct.addMessage(Message, id, token)
+
+@app.get("/getChat/{sessionId}")
+def getChat(request: Request, sessionId: str,token: str = Depends(get_current_active_user)):
+    response = sessionTable.get_item(Key={"id": sessionId})
+    if "Item" in response:
+        response = response["Item"]
+
+        if response["finishedChat"] == "":
+            finishedChat = []
+        else:
+            finishedChat = json.loads(response["finishedChat"])
+            
+        if response["currentChat"] == "":
+            currentChat = []
+        else:
+            currentChat = json.loads(response["currentChat"])
+            
+        response["playerSheets"] = json.loads(response["playerSheets"])
+
+        if len(currentChat) < response["numPlayers"]:
+            # Iterate through player sheets
+            for player_sheet in response["playerSheets"]:
+                player_id = player_sheet["id"]
+                player_name = player_sheet["name"]
+                
+                # Check if the player ID is not in currentChat
+                if player_id not in [message.get("id") for message in currentChat]:
+                    # Append the player's name and ID to currentChat
+                    currentChat.append({"message": "Waiting...","name": player_name, "id": player_id})
+                
+        response["friends"] = json.loads(response["friends"])
+        friends = []
+        
+        for friend in response["friends"]:
+            friends.append(friend["id"])
+
+        if token["id"] in friends:
+            return JSONResponse([finishedChat, currentChat])    
+    
+    return None
+
 #login page
 @app.get("/login")
 async def login(request: Request):
@@ -452,7 +939,7 @@ async def login(request: Request, msg_code: str):
     if msg_code == "REG_SUC":
         message = "Registration successful now login to verify account"
     if msg_code == "NOT_AUTH":
-        message = "Authentication error"
+        message = "Not authenticated"
     if msg_code == "WRONG_USR_PSWD":
         message = "Invalid username or password"
         
@@ -488,12 +975,6 @@ async def register(
         message = "Password must be longer than 8 characters"
     elif re.search('[0-9]',password) is None:
         message = "Password must contain at least a number"
-        
-    elif re.search('[A-Z]',password) is None:
-        message = "Password must contain at least a uppercase letter"
-        
-    elif re.search('[a-z]',password) is None:
-        message = "Password must contain at least a lowercase letter"
     
     elif usernameQuery or emailQuery:
         message = "email or username already in use"
@@ -513,7 +994,7 @@ async def register(
                             'pswd': pswdHash,
                             'disabled':False, 
                             'language':'english', 
-                            'icon':'pfp/default.jpg',
+                            'icon':'pfp/smvnvp29gauv37v8.jpg',
                             'info':'',
                             'credits': 25,
                             'created':str(datetime.now()), 
@@ -551,7 +1032,7 @@ async def addGameGet(request: Request, response_id: str = None ,token: str = Dep
     return templates.TemplateResponse("addGame.html", {"request": request, "message": message, "image_urls":images})
 
 @app.post("/addGame")
-async def addGamePost(request: Request, name: Annotated[str, Form()] = "No name",description: Annotated[str, Form()] = "No description", rules: Annotated[str, Form()] = "No rules", icon: Annotated[str, Form()] = "icon/image (50).jpg", token: str = Depends(get_current_active_user) ):   
+async def addGamePost(request: Request, name: Annotated[str, Form()] = "No name",description: Annotated[str, Form()] = "No description", rules: Annotated[str, Form()] = "No rules", icon: Annotated[str, Form()] = "icon/sduntj4svas8hffk.jpg", token: str = Depends(get_current_active_user) ):   
     while True:
         new_game_id = str(uuid.uuid4())
 
@@ -638,7 +1119,7 @@ def edit(request: Request, gameId: str, response_id:str = None, token: str = Dep
 
 
 @app.post("/edit/{gameId}")
-def submitEdit(request: Request, gameId: str,  name: Annotated[str, Form()] = "No name",description: Annotated[str, Form()] = "No description", rules: Annotated[str, Form()] = "No rules", icon: Annotated[str, Form()] = "icon/image (50).jpg", token: str = Depends(get_current_active_user)):
+def submitEdit(request: Request, gameId: str,  name: Annotated[str, Form()] = "No name",description: Annotated[str, Form()] = "No description", rules: Annotated[str, Form()] = "No rules", icon: Annotated[str, Form()] = "icon/sduntj4svas8hffk.jpg", token: str = Depends(get_current_active_user)):
     rulesTable.update_item(
         Key={
             'id': gameId  # assuming 'id' is the primary key of your table
@@ -843,17 +1324,29 @@ async def loadGames(request: Request, token: str = Depends(get_current_active_us
         IndexName='owner-index',
         KeyConditionExpression=Key('owner').eq(token["id"])
     )
-    
+
     bucket_name = 'masteraibucket'
-    
+
     if "Items" in games:
-        games = games["Items"]    
+        games = games["Items"]
+        
+        sharedlist = [] # initialize shared list
+        othergames = [] # initialize list for games without friends
         
         for game in games:
+            if 'mainSession' in game:
+                game = sessionTable.get_item(Key={"id": game["mainSession"]})
+                game = game["Item"]
+                
             key = game['icon']
             game['icon'] = loadImage(bucket_name, key)
+            
+            if "friends" in game:
+                sharedlist.append(game) # add to shared list
+            else:
+                othergames.append(game) # add to list for games without friends
 
-    return templates.TemplateResponse("loadGames.html", {"request": request, "games":games})
+    return templates.TemplateResponse("loadGames.html", {"request": request, "games":othergames, "shared":sharedlist})
 
 #resume page game
 @app.get("/loadPage/{gameId}")
@@ -861,30 +1354,212 @@ async def loadPage(request: Request, gameId: str, token: str = Depends(get_curre
     response = sessionTable.get_item(Key={"id": gameId})
 
     response = response["Item"]
-    bucket_name = 'masteraibucket'
-    response["icon"] = loadImage(bucket_name, response["icon"])
-    response["numPlayers"] = int(response["numPlayers"])
-        
-    rules = rulesTable.get_item(Key={"id": response["gameRuleset"]})
-    rules = rules["Item"]
+    all_ready = True
+    owner = True
     
-    return templates.TemplateResponse("loadpage.html", {"request": request, "rules":rules, "game":response})
+    if "friends" not in response:
+        bucket_name = 'masteraibucket'
+        response["icon"] = loadImage(bucket_name, response["icon"])
+        response["numPlayers"] = int(response["numPlayers"])
+        response["playerSheets"] = json.loads(response["playerSheets"])
+            
+        rules = rulesTable.get_item(Key={"id": response["gameRuleset"]})
+        rules = rules["Item"]
+        
+        return templates.TemplateResponse("loadpage.html", {"request": request, "rules":rules, "game":response, "ready":all_ready, "owner":owner})
+    
+    return RedirectResponse('/loadGames', status_code=status.HTTP_302_FOUND)
 
-@app.post("/deleteSession/{gameId}")
-def deleteSession(request: Request, gameId: str, token: str = Depends(get_current_active_user)):
-    response = sessionTable.get_item(Key={"id": gameId})
+#resume page game
+@app.get("/loadSession/{sessionId}")
+async def loadSession(request: Request, sessionId: str, token: str = Depends(get_current_active_user)):
+    response = sessionTable.get_item(Key={"id": sessionId})["Item"]
+    
+    #check if request is valid
+    if "friends" in response:
+        friendStatus = json.loads(response["friends"])
+        
+        all_ready = True
+        owner = False
+        friends = []
+        
+        for friend in friendStatus:
+            friends.append(friend["id"])
+            if friend["id"] == token["id"]:
+                friend["ready"] = True
+            if not friend.get("ready", False):
+                all_ready = False   
+            
+        #check that user is in session
+        if token["id"] in friends:
+            if response["owner"] == token["id"]:
+                owner = True
+            
+            #load image
+            bucket_name = 'masteraibucket'
+            response["icon"] = loadImage(bucket_name, response["icon"])
+            response["numPlayers"] = int(response["numPlayers"])
+            
+            #load playerSheets
+            response["playerSheets"] = json.loads(response["playerSheets"])
+            
+            #get rules
+            rules = rulesTable.get_item(Key={"id": response["gameRuleset"]})["Item"]
+            
+            #loop every friend in table 
+            for friend in friendStatus:
+                # Get the user info from DynamoDB
+                user = table.get_item(Key={"id": friend["id"]})["Item"]
+
+                found_user = any(sheet["id"] == friend["id"] for sheet in response["playerSheets"])
+
+                # If friends aren't already in `response["playerSheets"]`, add them
+                if not found_user and friend["id"] != token["id"]:
+                    response["playerSheets"].append({
+                        "id": friend["id"],
+                        "username": user["username"],
+                        "ready":False,
+                        "owner":False
+                    })
+                #if player is not in playerSheets yet make him create his character
+                elif not found_user and friend["id"] == token["id"]:
+                    return RedirectResponse(f'/addCharacter/{sessionId}', status_code=status.HTTP_302_FOUND)
+                elif found_user:
+                    sheet = next(sheet for sheet in response["playerSheets"] if sheet["id"] == friend["id"])
+                    sheet["username"] = user["username"]
+                    sheet["ready"] = friend["ready"]
+                    sheet["owner"] = False
+                    if response["owner"] == sheet["id"]:
+                        sheet["owner"] = True
+                
+            sessionTable.update_item(
+                Key={'id': sessionId},
+                UpdateExpression='SET friends = :val1',
+                ExpressionAttributeValues={':val1': json.dumps(friendStatus)}
+            )
+                                        
+            return templates.TemplateResponse("loadpage.html", {"request": request, "rules":rules, "game":response, "ready":all_ready, "owner":owner})
+    
+    return RedirectResponse('/loadGames', status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/addCharacter/{sessionId}")
+def addCharacterPage(request: Request, sessionId: str, token: str = Depends(get_current_active_user)):
+    response = sessionTable.get_item(Key={"id": sessionId})
+    response = response["Item"]
+    
+    #check if request is valid
+    if "friends" in response:
+        friendStatus = json.loads(response["friends"])
+        
+        for friend in friendStatus:
+            if friend["id"] == token["id"]:
+                user = table.get_item(Key={"id": token["id"]})
+                user = user["Item"]
+                for sheet in json.loads(response["playerSheets"]):
+                    if sheet["id"] == token["id"]:
+                        return RedirectResponse('/loadGames', status_code=status.HTTP_302_FOUND)
+                
+                return templates.TemplateResponse("addCharacterPage.html", {"request": request, "session":response["name"], "id":response["id"], "user":user["username"], "game":response})
+
+    return RedirectResponse('/loadGames', status_code=status.HTTP_302_FOUND)
+
+@app.post("/addCharacter/{sessionId}")
+async def addCharacter(request: Request, sessionId: str, token: str = Depends(get_current_active_user)):
+    response = sessionTable.get_item(Key={"id": sessionId})
+    response = response["Item"]
+     
+    form_data = await request.form()
+    name = form_data.get("name")
+    sheet = form_data.get("sheet")
+    
+    #check if request is valid
+    if "playerSheets" in response:
+        playerSheets = json.loads(response["playerSheets"])
+                
+        for player in playerSheets:
+            
+            if player["id"] == token["id"]:
+                
+                return RedirectResponse('/loadGames/', status_code=status.HTTP_302_FOUND) 
+            
+            newPlayer = {"name":name, "sheet":sheet, "id":token["id"]}
+            
+            playerSheets.append(newPlayer)
+            
+            jsonSheets = json.dumps(playerSheets)
+            
+            sessionTable.update_item(
+                Key={'id': sessionId},
+                UpdateExpression='SET playerSheets = :val1',
+                ExpressionAttributeValues={
+                    ':val1': jsonSheets,
+                }
+            )
+                                    
+            return RedirectResponse('/loadSession/'+sessionId, status_code=status.HTTP_302_FOUND)
+        
+    return RedirectResponse('/loadGames/', status_code=status.HTTP_302_FOUND)
+
+@app.post("/deleteSession/{sessionId}")
+def deleteSession(request: Request, sessionId: str, token: str = Depends(get_current_active_user)):
+    response = sessionTable.get_item(Key={"id": sessionId})
 
     if "Item" in response:
         response = response["Item"]
         if response["owner"] == token["id"]:
-            
+            if "subSession" in response:
+                # delete items with matching IDs
+                with sessionTable.batch_writer() as batch:
+                    for id in response["subSession"]:
+                        batch.delete_item(Key={'id': id})
+                
             sessionTable.delete_item(
                 Key={
-                    'id': gameId
+                    'id': sessionId
                 }
             ) 
     
     return RedirectResponse('/loadGames', status_code=status.HTTP_302_FOUND)
+
+@app.get("/readyFriends/{sessionId}")
+def getReadyFriends(request: Request, sessionId: str,token: str = Depends(get_current_active_user)):
+    response = sessionTable.get_item(Key={"id": sessionId})
+    if "Item" in response:
+        response = response["Item"]
+        friendStatus = json.loads(response["friends"])
+
+        friends = []
+        
+        for friend in friendStatus:
+            friends.append(friend["id"])
+
+        if response["owner"] == token["id"] or token["id"] in friends:
+            return JSONResponse(friendStatus)    
+    return None
+
+@app.get("/setNotReadyUser/{sessionId}")
+def setNotReadyFriends(request: Request, sessionId: str,token: str = Depends(get_current_active_user)):
+    response = sessionTable.get_item(Key={"id": sessionId})
+    if "Item" in response:
+        response = response["Item"]
+        friendStatus = json.loads(response["friends"])
+
+        friends = []
+        
+        for friend in friendStatus:
+            if friend["id"] == token["id"]:
+                friend["ready"] = False
+        
+        sessionTable.update_item(
+            Key={'id': sessionId},
+            UpdateExpression='SET friends = :val1',
+            ExpressionAttributeValues={
+                ':val1': json.dumps(friendStatus),
+            }
+        )                
+           
+    return None
 
 #friend page
 @app.get("/friends")
@@ -900,7 +1575,6 @@ async def friends(request: Request, token: str = Depends(get_current_active_user
 
     if "Items" in response:
         response = response["Items"]
-        print(response)
         
         for friend in response:
             ids.append({"id":friend["user2"]})
@@ -913,12 +1587,10 @@ async def friends(request: Request, token: str = Depends(get_current_active_user
     
     if "Items" in response:
         response = response["Items"]
-        print(response)
         
         for friend in response:
             ids.append({"id":friend["user1"]})
             
-    print(ids)
     if ids[0:1]:
         response = dynamodb.batch_get_item(
             RequestItems={
@@ -947,22 +1619,10 @@ async def addFriend(request: Request, friendName: Annotated[str, Form()], token:
     
     if usernameQuery["Items"][0:1]:
         user2 = usernameQuery["Items"][0]
-
-        response = dynamodb.batch_get_item(
-            RequestItems={
-                'masteraiFriendships': {
-                    'Keys': [
-                        {'user1': token["id"], 'user2': user2["id"]},
-                        {'user1':  user2["id"], 'user2': token["id"]}
-                    ]
-                }
-            }
-        )
         
-        if 'Responses' not in response:
+        if checkFriendship(token["id"], user2["id"]) == False:
             user1 = table.get_item(Key={"id": token["id"]})
             user1 = user1["Item"]
-                        
             if user1["username"] != user2["username"]:
                 friendsTable.put_item(
                     Item={
@@ -1077,7 +1737,8 @@ async def shareGame(request: Request, friendId: str, token: str = Depends(get_cu
                 ':val1': secure,
                 ':val2': str(datetime.now()),
                 
-            }
+            },
+            ConditionExpression='attribute_exists(user1) AND attribute_exists(user2)'
         )
     except:  
         friendsTable.update_item(
@@ -1102,11 +1763,11 @@ async def shareGame(request: Request, friendId: str, token: str = Depends(get_cu
 #select game to play
 @app.get("/gamePage/{gameId}")
 async def gamePage(request: Request, gameId: str, token: str = Depends(get_current_active_user)):
-    response = rulesTable.get_item(Key={"id": gameId})
+    gameResponse = rulesTable.get_item(Key={"id": gameId})
 
-    response = response["Item"]
+    gameResponse = gameResponse["Item"]
     bucket_name = 'masteraibucket'
-    response["icon"] = loadImage(bucket_name, response["icon"])
+    gameResponse["icon"] = loadImage(bucket_name, gameResponse["icon"])
     
     user = table.get_item(Key={"id": token["id"]})
     user = user["Item"]
@@ -1122,9 +1783,52 @@ async def gamePage(request: Request, gameId: str, token: str = Depends(get_curre
             images.append({
                 "link":loadImage(bucket_name, object_key),
                 "key": s3_object["Key"]
-            })
+            })   
+            
+    #get all friendships on user 1
+    response = friendsTable.query(
+        KeyConditionExpression = Key('user1').eq(token["id"])
+    )
     
-    return templates.TemplateResponse("gamepage.html", {"request": request, "user":user, "game":response, "images": images})
+    ids = []
+    bucket_name = 'masteraibucket'
+
+    if "Items" in response:
+        response = response["Items"]
+        
+        for friend in response:
+            ids.append({"id":friend["user2"]})
+        
+    #get items on user 2
+    response = friendsTable.query(
+        IndexName='user2-user1-index',
+        KeyConditionExpression = Key('user2').eq(token["id"])
+    )
+    
+    if "Items" in response:
+        response = response["Items"]
+        
+        for friend in response:
+            ids.append({"id":friend["user1"]})
+            
+    if ids[0:1]:
+        response = dynamodb.batch_get_item(
+            RequestItems={
+                'MasterAiUsers': {
+                    'Keys': ids
+                }
+            }
+        )
+            
+        friends = response["Responses"]['MasterAiUsers']
+        
+        for friend in friends:
+            friend["icon"] = loadImage(bucket_name, friend["icon"])
+    else:
+        friends = []
+           
+    
+    return templates.TemplateResponse("gamepage.html", {"request": request, "user":user, "game":gameResponse, "images": images, "friends":friends})
 
 #select game to play
 @app.get("/sharedPage/{gameId}")

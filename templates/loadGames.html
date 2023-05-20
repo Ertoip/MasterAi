@@ -7,7 +7,7 @@
   </head>
   <body>
     <h1>Load a game</h1>
-    <h2>Offline</h2>
+    <h2>Local</h2>
     <div class="container">
       {% for game in games %}
         <a href="/loadPage/{{game['id']}}">
@@ -29,8 +29,20 @@
         </div>
       </a>
     </div>
+
+
     <h2>Online</h2>
     <div class="container">
+      {% for game in shared %}
+        <a href="/loadSession/{{game['id']}}">
+          <div class="box">
+            <figure>
+                <img src="{{game['icon']}}" style="width:100%">
+                <figcaption>{{game["name"]}}</figcaption>
+            </figure> 
+          </div>
+        </a>
+      {% endfor %}
       <a href="/">
         <div class="box">
             <figure>

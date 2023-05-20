@@ -21,7 +21,7 @@ html, body {
 .pfp{
     width: 25em;
     height: 25em;
-    border-radius: 4%;
+    border-radius: 8%;;
 	border: 1px solid #444;
     position: relative;
     overflow: hidden;
@@ -144,8 +144,8 @@ button:active{
 .box {
     width: 18em;
     height: 18em;
-    border-radius: 4%;
-    transition: transform 0.3s ease-in-out;
+    border-radius: 8%;;
+    transition: transform 0.15s ease-in-out;
     text-align: center;
     vertical-align:middle;
 	border: 1px solid #444;
@@ -155,14 +155,12 @@ button:active{
 }
 
 .box:hover {
-    animation: boxHover both 0.3s;
+    animation: boxHover both 0.15s;
 }
 
 @keyframes boxHover {
     from {}
     to {
-        width: 19em;
-        height: 19em;
         box-shadow: 1em 1em 3em black;
         filter: grayscale(0%) saturate(125%);
     }

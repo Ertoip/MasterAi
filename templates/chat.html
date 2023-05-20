@@ -16,7 +16,7 @@
     <div class="container">
         <div class="utilityArea">
             <div class="box">
-                <h2>Roll a dice:</h2>
+                <h2>Dices:</h2>
 
                 <label for="numDice">Number of dice:</label>
                 <input type="number" id="numDice" name="numDice" min="1" max="20" value="1">
@@ -35,30 +35,57 @@
                 <button onclick="rollDice()">Roll</button>
                 <p id="diceResult"></p>
             </div>
+            <div class="box">
+                <h2>Players:</h2>
+              
+                <select id="playerSelector" name="playerSelector">
+                    {% for player in players %}
+                        <option value="{{player['name']}}">
+                            {{player["username"]}} {{player['name']}}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <p id='{{players[0]["name"]}}' class="playerSheet" style="display: block;">{{players[0]["sheet"]}}</p>
+                {% for player in players[1:] %}
+                    <p id='{{player["name"]}}' class="playerSheet">{{player["sheet"]}}</p>
+                {% endfor %}
+            </div>
+
         </div>
         <div class="chatArea">
             <div class="chat" id="chat">
                 {% for message in messages[1:] %}
                     {% if message.role != "system" %}
+                        {% if message.role == "user" %}
+                        <div class="{{message.role}}">
+                            <h3>{{ message.content[0] }}</h3>
+                            <p>{{ message.content[1] }}</p>
+                        </div>
+                        {% else %}
                         <div class="{{message.role}}">
                             <p>{{message.content}}</p>
                         </div>
+                        {% endif %}
                     {% endif %}
+                    
                 {% endfor %}
+
             </div>
-            <form class="formChat" action="" onsubmit="sendMessage(event)">
+            <div class="formChat" id="formChat" action="">
                 <textarea class="chatbox" name="chat" id="inputChat" rows="1" cols="50" required></textarea>
-                <button class="send" id="send" onclick="disableSendButton()">
+                <button class="send" id="send">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-send" viewBox="0 -2 16 18">
                         <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
                     </svg>
                 </button>
                 <p>Credits: <span id="credits">{{credits}}</span></p>
-            </form>
+            </div>
      
         </div>
     </div>
     
+    {% if not online %}
     <script>
         var messages = document.getElementById('chat')
         var sendButton = document.getElementById('send')
@@ -92,25 +119,209 @@
             sendButton.disabled = true;
         }
     
-        async function sendMessage(event) {
-            event.preventDefault()
-            var input = document.getElementById("inputChat")
-            var messages = document.getElementById('chat')
-            var message = document.createElement('div')
-            message.setAttribute("class", "user");
-            var p = document.createElement('p')
-            var content = document.createTextNode(input.value)
-            p.appendChild(content)
-            message.appendChild(p)
-            messages.appendChild(message)
-            messages.scrollTop = messages.scrollHeight;
-            data = input.value
-            input.value = ''
-            await postMessage(data)
-    
-            messages.scrollTop = messages.scrollHeight;
+        $(document).ready(function() {
+            $('#send').click(async function(event) {
+                event.preventDefault()
+                var input = document.getElementById("inputChat")
+                var messages = document.getElementById('chat')
+                var message = document.createElement('div')
+                message.setAttribute("class", "user");
+                var p = document.createElement('p')
+                var content = document.createTextNode(input.value)
+                p.appendChild(content)
+                message.appendChild(p)
+                messages.appendChild(message)
+                messages.scrollTop = messages.scrollHeight;
+                data = input.value
+                input.value = ''
+                await postMessage(data)
+        
+                messages.scrollTop = messages.scrollHeight;
+            });
+        });
+    </script>
+    {% else %}
+    <script>
+        var messages = document.getElementById('chat');
+        var sendButton = document.getElementById('send');
+        var credits = document.getElementById('credits');
+
+        function areListsEqual(mainArray1, mainArray2) {
+            const subArray1_1 = mainArray1[0];
+            const subArray2_1 = mainArray2[0];
+            const subArray1_2 = mainArray1[1];
+            const subArray2_2 = mainArray2[1];
+            const element = document.getElementById("curChat");
+
+            console.log(subArray1_1, subArray2_1)
+            console.log(subArray1_2, subArray2_2)
+
+            if (!element && subArray2_1.length === 0){
+                return 1;
+            } else if (!areArraysEqual(subArray1_1, subArray2_1)) {
+                return 1; // First sub-arrays are different
+            } else if (!areArraysEqual(subArray1_2, subArray2_2)) {
+                return 2; // Second sub-arrays are different
+            } else {
+                return 0; // Sub-arrays are the same
+            }
         }
 
+        function areArraysEqual(array1, array2) {
+            if (array1.length !== array2.length) {
+                return false;
+            }
+
+            for (let i = 0; i < array1.length; i++) {
+                if (JSON.stringify(array1[i]) !== JSON.stringify(array2[i])) {
+                return false;
+                }
+            }
+
+            return true;
+        }
+
+        async function postMessage(message) {
+            const rawResponse = await fetch('/addMessageSession/{{id}}', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({msg: message.toString()})
+            });
+            const response = await rawResponse.json();
+    
+            credits.innerText = response[0]
+
+            return response[1]
+        }
+
+        var storedMessages = [[],[]]
+
+        async function getChat(){
+			fetch('/getChat/{{id}}')
+            .then(response => response.json())
+            .then(data => {
+                var check = areListsEqual(storedMessages, data)
+                console.log(check)
+                if(check == 1){//do this if finished chat is changed
+                    storedMessages = data
+                    data[0].forEach(ms =>{
+                        var message = document.createElement('div')
+                        if (ms.hasOwnProperty("name")){
+                            message.setAttribute("class", "user");
+                            var h3 = document.createElement('h3')
+                            var content = document.createTextNode(ms.name)
+                            h3.appendChild(content)
+                            message.appendChild(h3)
+                        } else {
+                            message.setAttribute("class", "assistant");
+                        }
+                    
+                        var p = document.createElement('p')
+                        var content = document.createTextNode(ms.message)
+                        p.appendChild(content)
+
+                        message.appendChild(p)
+                    
+                        messages.appendChild(message)
+                    });
+
+
+                    // Select the element you want to remove
+                    var curChat = document.getElementById('curChat');
+
+                    if(curChat){
+                        // Remove the element from its parent
+                        curChat.remove();
+                    }
+
+                    curChat = document.createElement('div')
+                    curChat.setAttribute("id", "curChat")
+                    data[1].forEach(ms =>{
+
+                        var message = document.createElement('div')
+                        message.setAttribute("id", ms.id);
+                        if (ms.hasOwnProperty("name")){
+                            message.setAttribute("class", "user");
+                            var h3 = document.createElement('h3')
+                            var content = document.createTextNode(ms.name)
+                            h3.appendChild(content)
+                            message.appendChild(h3)
+                        } else {
+                            message.setAttribute("class", "assistant");
+                        }
+
+                        var p = document.createElement('p')
+                        p.setAttribute("id", "p"+ms.id)
+                        var content = document.createTextNode(ms.message)
+                        p.appendChild(content)
+
+                        message.appendChild(p)
+                    
+                        curChat.appendChild(message)
+                    });
+                    messages.appendChild(curChat)
+                    messages.scrollTop = messages.scrollHeight;
+
+                }
+
+                if(check == 2){//do this if current chat is changed
+                    storedMessages = data
+
+                    data[1].forEach(ms =>{                  
+
+                        var p = document.getElementById("p"+ms.id);
+                        p.innerText = ms.message
+                    });
+                    messages.scrollTop = messages.scrollHeight;
+                }
+            })
+            .catch(error => {
+            console.error(error);
+            });
+        }
+
+        setInterval(getChat, 1500);
+    
+        function disableSendButton() {
+            sendButton.disabled = true;
+        }
+
+        window.onload = function() {
+            getChat();
+		}
+    
+
+        $(document).ready(function() {
+            $('#send').click(async function(event) {
+                event.preventDefault()
+                console.log("formchat done")
+                var input = document.getElementById("inputChat")
+                $('#inputChat').prop('disabled', true);
+                $('#send').prop('disabled', true);
+                var data = input.value
+
+                var found = await postMessage(data)
+                var messages = document.getElementById('chat')
+
+                if(!found){
+                    var p = document.getElementById("p{{uid}}");
+                    p.innerText = data
+                    input.value = ''
+                }
+        
+                $('#inputChat').prop('disabled', false);
+                $('#send').prop('disabled', false);
+                messages.scrollTop = messages.scrollHeight;
+            
+            });
+        });
+    </script>
+    {% endif %}
+
+    <script>
         function rollDice() {
             var diceInput = document.getElementById("diceInput");
             var diceType = diceInput.value;
@@ -137,9 +348,42 @@
 
         }
 
-        function goBack() {
-            window.location.href = "/{{url}}/{{id}}";
-        }
+        const playerSelector = document.querySelector('#playerSelector');
+        const playerDivs = document.querySelectorAll('.playerSheet');
+
+        playerSelector.addEventListener('change', () => {
+            const selectedValue = playerSelector.value;
+
+            // Hide all divs
+            playerDivs.forEach(div => {
+                div.style.display = 'none';
+                if(div.id == selectedValue){
+                    div.style.display = 'block'
+                }
+            });
+        });
+
+        $(window).on('beforeunload', function() {
+            console.log("done")
+
+            event.preventDefault();
+
+            fetch('/setNotReadyUser/{{id}}', {
+                method:'get',
+                keepalive: true // this is important!
+            })
+
+            return undefined;
+        });
+
+		function goBack() {
+			window.location.href = "/loadGames";
+
+			fetch('/setNotReadyUser/{{id}}', {
+				method:'get',
+				keepalive: true // this is important!
+			})
+		}
     </script>
 </body>
 </html>

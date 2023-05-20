@@ -9,40 +9,68 @@
 
 	<h1>{{game["name"]}}</h1>
 
+	{% if owner %}
 	<form action="/deleteSession/{{game['id']}}" method="post">
 		<button class="deleteButton">Delete</button>
 	</form>
+	{% endif %}
 	<form method="post" action="/resume" id="gameStart">
 		<div class="container">
-			<div class="box">
-				<a href="#" onclick="document.getElementById('gameStart').submit();">
-					<figure>
+		{% if ready %}
+			<div id="boxId" class="box">
+				<button id="boxButton">
+					<figure class="boxFigure">
 						<img src="{{game['icon']}}" style="width:100%">
-						<figcaption>Start</figcaption>
+						<figcaption class="boxCaption">Start</figcaption>
 					</figure>
-				</a>
+				</button>
 			</div>
+		{% else %}
+			<div id="boxId">
+				<button id="boxButton" disabled>
+					<figure class="boxFigure">
+						<img src="{{game['icon']}}" style="width:100%">
+						<figcaption class="boxCaption">Waiting for players ...</figcaption>
+					</figure>
+				</button>
+			</div>
+		{% endif %}
+			<input type="hidden" name="gameId" value="{{game['id']}}">
+
 			<div class="formbox" id="formbox">
 				<h3>Game description:</h3>
 				<p>{{rules['description']}}</p>
 				<div class="subcontainer">
 					<div class="subbox">
-						<input type="hidden" name="gameId" value="{{game['id']}}">
-						<h3>Session incipit:</h3>
-						<p>{{game['description']}}</p>
-						<h3>Select language:</h3>
-                        <p>{{game['language']}}</p>
+						<div class="player-card">
+							<p><strong>Session incipit: </strong>{{game['description']}}</p>
+						
+                        	<p><strong>Session language: </strong>{{game['language']}}</p>
+
+							<p><strong>Number of Players: </strong>{{game['numPlayers']}}</p>
+						</div>
 					</div>
 					<div class="subbox">
-						<div id="num_players_div">
-							<h3 for="num_players">Number of Players:</h3>
-							<p>{{game['numPlayers']}}</p>
-						</div>
 						<div id="player_sheets">
-							{% for n in range(game['numPlayers']) %}
-								<h3>Player {{n+1}}:</h3>
-								<p>{{game['playerSheets'][n]}}</p>
-							{% endfor %}
+							{% for friend in game['playerSheets'] %}
+							<div class="player-card">
+								{% if friend["username"] %}
+									<h3 class="player-name">{{friend["username"]}} {% if friend["owner"] %}<em>Session owner</em>{% endif %}</h3>
+									{% if friend["ready"] %}
+										<p id="{{friend['id']}}" class="playerReady">Ready</p>
+									{% else %}
+										<p id="{{friend['id']}}" class="playerNotReady">Not ready</p>
+									{% endif %}
+								{% endif %}
+								
+								{% if friend["name"] %}
+									<p class="character-info"><strong>Character Name:</strong> {{friend["name"]}}</p>
+									<p><strong>Character Sheet:</strong> {{friend["sheet"]}}</p>
+								{% else %}
+									<p><em>No character information available.</em></p>
+								{% endif %}
+							</div>
+						{% endfor %}
 						</div>
 					</div>
 				</div>
@@ -50,10 +78,80 @@
 		</div>
 	</form>
 
+	{% if game['playerSheets'][0]['username'] %}
+	<script>
+		var response = ""
+
+		function getOnlineFriends() {
+			fetch('/readyFriends/{{game["id"]}}')
+				.then(response => response.json())
+				.then(data => {
+					data.forEach(user =>{
+						var element = document.getElementById(user.id)
+						if(user.ready == true){
+							element.removeAttribute("class", "playerNotReady")
+							element.setAttribute("class", "playerReady");
+							element.innerText = "Ready"
+						}else{
+							element.removeAttribute("class", "playerReady")
+							element.setAttribute("class", "playerNotReady");
+							element.innerText = "Not ready"
+						}
+					});
+
+					var allReady = data.every(user => user.ready == true);
+					box = document.getElementById("boxId");
+					button = document.getElementById("boxButton")
+					if (allReady) {
+						box.setAttribute("class", "box");
+						var figure = box.querySelector(".boxFigure");
+						var figcaption = figure.querySelector(".boxCaption");
+						figcaption.innerText = "Start";
+						button.disabled = false;
+					}else{
+						box.removeAttribute("class", "box");
+						var figure = box.querySelector(".boxFigure");
+						var figcaption = figure.querySelector(".boxCaption");
+						figcaption.innerText = "Waiting for players ...";
+						button.disabled = true;
+					}
+
+				})
+				.catch(error => {
+				console.error(error);
+				});
+		}
+
+		setInterval(getOnlineFriends, 1500);
+
+		function goBack() {
+			window.location.href = "/loadGames";
+
+			fetch('/setNotReadyUser/{{game["id"]}}', {
+				method:'get',
+				keepalive: true // this is important!
+			})
+		}
+
+		$(window).on('beforeunload', function() {
+			console.log("done")
+
+			event.preventDefault();
+
+			fetch('/setNotReadyUser/{{game["id"]}}', {
+				method:'get',
+				keepalive: true // this is important!
+			})
+			return undefined;
+		});
+	</script>
+	{% else %}
 	<script>
 		function goBack() {
 			window.location.href = "/loadGames";
 		}
 	</script>
+	{% endif %}
+
 </body>
 </html>

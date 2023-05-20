@@ -34,7 +34,7 @@ h2{
 .box {
     width: 26em;
     height: 26em;
-    border-radius: 4%;
+    border-radius: 8%;;
     transition: transform 0.3s ease-in-out;
     text-align: center;
     vertical-align:middle;
@@ -52,21 +52,19 @@ h2{
 }
 
 .box:hover {
-    animation: boxHover 0.3s ease-out forwards;
+    animation: boxHover 0.15s ease-out forwards;
 }
 
 @keyframes boxHover {
     from {}
     to {
-        width: 27em;
-        height: 27em;
         box-shadow: 1em 1em 3em black;
         filter: brightness(100%) saturate(125%);
     }
 }
 
 .box:hover img{
-    animation: imgHover 0.3s ease-out forwards;
+    animation: imgHover 0.15s ease-out forwards;
 }
 
 @keyframes imgHover {
@@ -189,8 +187,8 @@ label {
     .box {
         width: 20em;
         height: 20em;
-        border-radius: 4%;
-        transition: transform 0.3s ease-in-out;
+        border-radius: 8%;;
+        transition: transform 0.15s ease-in-out;
         text-align: center;
         vertical-align: middle;
         border: 1px solid #444;
@@ -200,10 +198,34 @@ label {
     @keyframes boxHover {
         from {}
         to {
-            width: 21em;
-            height: 21em;
             box-shadow: 1em 1em 3em black;
             filter: grayscale(0%) saturate(125%);
         }
+    }
+
+    .display{
+        width: 80%;
+        background-color: #222;
+        padding: 2em;
+        border: 1px solid #444;
+        border-radius: 5px;
+        box-shadow: 0 0 10px #444;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        color: #ccc;
+        position: fixed;
+        top: 30vh;
+        z-index: 9999;
+        right: 4%;
+        margin:auto;
+    }
+    
+    .display h1 {
+        text-align: center;
+        margin-top: 0;
+    }
+    
+    .display form {
+        margin-top: 20px;
     }
 }

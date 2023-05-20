@@ -13,6 +13,7 @@
 			<input type="text" id="email" name="username" required><br>
 			<label for="password">Password:</label><br>
 			<input type="password" id="password" name="password" required><br>
+			<button type="button" onclick="togglePassword()" id="showHideButton" class="formButton">Show</button><br>
 			<input type="submit" value="Login">
 		</form>
         <div class="new-to-site">
@@ -20,6 +21,19 @@
 			<a href="/registration"><button>Register</button></a>
 		</div>
         <p>{{message}}</p>
+		<script>
+		function togglePassword() {
+			var button = document.getElementById("showHideButton")	
+			var passwordField = document.getElementById("password");
+			if (passwordField.type === "password") {
+				button.innerHTML="Hide"
+				passwordField.type = "text";
+			} else {
+				button.innerHTML="Show"
+				passwordField.type = "password";
+			}
+		}
+		</script>
 	</div>
 </body>
 </html>

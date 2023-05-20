@@ -14,12 +14,12 @@
 	<form method="post" action="/game" id="gameStart">
 		<div class="container">
 			<div class="box">
-				<a href="#" onclick="document.getElementById('gameStart').submit();">
+				<button>
 					<figure>
 						<img src="{{game['icon']}}" style="width:100%">
 						<figcaption>Start</figcaption>
 					</figure>
-				</a>
+				</button>
 			</div>
 			<div class="formbox" id="formbox">
 				<p>{{game['description']}}</p>
@@ -27,7 +27,7 @@
 					<div class="subbox">
 						<input type="hidden" name="gameId" value="{{game['id']}}">
 						<h3 for="incipit">Session name:</h3>
-						<input type="text" name="name" id="name">
+						<input type="text" name="name" id="name" required>
 						<h3 for="incipit">Game incipit:</h3>
 						<textarea id="incipit" name="incipit" required></textarea>
 						<h3>Select language:</h3>
@@ -41,24 +41,53 @@
 						<h3>Session icon:</h3>
 						<div class="radioContainer" id="radioContainer">
 							{% for image in images %}
-							  	<input type="radio" id="{{image['key']}}" name="icon" value="{{image['key']}}">
+							  	<input type="radio" id="{{image['key']}}" name="icon" value="{{image['key']}}" required>
 								<label for="{{image['key']}}"><img src="{{image['link']}}"></label>
 							{% endfor %}
 						</div>
 					</div>
 					<div class="subbox">
-						<div id="num_players_div">
+						
+						<div id="form-toggle">
+						  <input type="radio" id="user-form-radio" name="session" value="local" checked>
+						  <label for="user-form-radio">Local session</label>
+						  <input type="radio" id="checkbox-form-radio" name="session" value="online">
+						  <label for="checkbox-form-radio">Online session</label>
+						</div>
+
+						<div id="user-form">
+						  <div id="num_players_div">
 							<h3 for="num_players">Number of Players:</h3>
 							<input type="number" id="num_players" name="num_players" min="1" max="8" value="1" onchange="updatePlayerInputs()" required>
-						</div>
-						<div id="player_sheets">
+						  </div>
+						  <div id="player_sheets">
 							<h3>Player 1:</h3>
-							<input type="text" name="names" id="name1" placeholder="Player 1 Sheet" required>
+							<input type="text" name="names" id="name1" placeholder="Player 1 Name" required>
 							<textarea id="player1" name="sheets" placeholder="Player 1 Sheet" required></textarea>
+						  </div>
+						  <input type="button" value="+" onclick="incrementNumPlayers()">
+						  <input type="button" value="-" onclick="decrementNumPlayers()"><br><br>
 						</div>
-						<input type="button" value="+" onclick="incrementNumPlayers()">
-						<input type="button" value="-" onclick="decrementNumPlayers()"><br><br>
-					</div>
+
+						<div id="checkbox-form" style="display:none">
+							<h3>Session owner character:</h3>
+							<input type="text" name="ownerName" id="ownerName" placeholder="Owner character name">
+							<textarea id="ownerSheet" name="ownerSheet" placeholder="Owner character sheet"></textarea>
+
+							<div class="checkbox-container">
+							{% for friend in friends %}
+								<input type="checkbox" id="{{friend['id']}}" name="friends" value="{{friend['id']}}" onchange="updateBrightness(this)">
+								<label for="{{friend['id']}}" class="checkbox">
+									<figure>
+										<img src="{{friend['icon']}}" style="width:100%">
+										<figcaption>{{friend['username']}}</figcaption>
+									</figure> 
+								</label>
+							{% endfor %}
+							</div>
+						</div>
+
+					  </div>
 				</div>
 			</div>
 		</div>
@@ -104,45 +133,114 @@
 		}
 
 		window.onload = function() {
-		var num_players_input = document.getElementById("num_players");
+			var num_players_input = document.getElementById("num_players");
 
-		// Get num_players from local storage and set as the value of the input
-		var num_players = localStorage.getItem("num_players");
-		if (num_players !== null) {
-			num_players_input.value = num_players;
-			updatePlayerInputs();
+			// Get num_players from local storage and set as the value of the input
+			var num_players = localStorage.getItem("num_players");
+			if (num_players !== null) {
+				num_players_input.value = num_players;
+				updatePlayerInputs();
+			}
 		}
-	}
 
-	function incrementNumPlayers() {
-		var num_players = document.getElementById("num_players");
-		if (num_players.value < 8) {
-			num_players.value = parseInt(num_players.value) + 1;
-			updatePlayerInputs();
+		function incrementNumPlayers() {
+			var num_players = document.getElementById("num_players");
+			if (num_players.value < 8) {
+				num_players.value = parseInt(num_players.value) + 1;
+				updatePlayerInputs();
+			}
 		}
-	}
-	
-	function decrementNumPlayers() {
-		var num_players = document.getElementById("num_players");
-		if (num_players.value > 1) {
-			num_players.value = parseInt(num_players.value) - 1;
-			updatePlayerInputs();
+		
+		function decrementNumPlayers() {
+			var num_players = document.getElementById("num_players");
+			if (num_players.value > 1) {
+				num_players.value = parseInt(num_players.value) - 1;
+				updatePlayerInputs();
+			}
 		}
-	}
 
-	function goBack() {
-		window.location.href = "/gameSelection";
-	}
-
-	var selectElement = document.getElementById("language");
-    var optionName = "{{user['language']}}";
-
-    for (var i = 0; i < selectElement.options.length; i++) {
-		if (selectElement.options[i].value === optionName) {
-			selectElement.selectedIndex = i;
-			break;
+		function goBack() {
+			window.location.href = "/gameSelection";
 		}
-    }
+
+		var selectElement = document.getElementById("language");
+		var optionName = "{{user['language']}}";
+
+		for (var i = 0; i < selectElement.options.length; i++) {
+			if (selectElement.options[i].value === optionName) {
+				selectElement.selectedIndex = i;
+				break;
+			}
+		}
+
+		const userForm = document.getElementById("user-form");
+		const checkboxForm = document.getElementById("checkbox-form");
+		const userFormRadio = document.getElementById("user-form-radio");
+		const checkboxFormRadio = document.getElementById("checkbox-form-radio");
+
+		function setRequired(form, required) {
+			const elements = form.querySelectorAll('input[type="text"], textarea');
+			elements.forEach(element => {
+				if (required) {
+					element.required = true;
+				} else {
+					element.required = false;
+				}
+			});
+		}
+
+		function showUser(){
+			userForm.style.display = "block";
+			setRequired(userForm, true)
+			checkboxForm.style.display = "none";
+			setRequired(checkboxForm, false)
+		}
+
+		function hideUser(){
+			userForm.style.display = "none";
+			setRequired(userForm, false)
+			checkboxForm.style.display = "block";
+			setRequired(checkboxForm, true)
+		}
+
+		userFormRadio.addEventListener("click", () => {
+			showUser();
+		});
+
+		checkboxFormRadio.addEventListener("click", () => {
+			hideUser();
+		});
+
+		function updateBrightness(checkbox) {
+			var img = checkbox.nextElementSibling.querySelector("img");
+			if (checkbox.checked) {
+				img.style.filter = "brightness(1)";
+			} else {
+				img.style.filter = "brightness(0.5)";
+			}
+		}
+
+		function checkInitialCheckboxes() {
+			const checkboxes = checkboxForm.querySelectorAll('input[type="checkbox"]');
+			if (userFormRadio.checked) {
+				showUser();
+			} else if (checkboxFormRadio.checked) {
+				hideUser();
+			}
+			checkboxes.forEach(checkbox => {
+				if (checkbox.checked) {
+				updateBrightness(checkbox);
+				}
+			});
+		}
+
+		document.addEventListener("DOMContentLoaded", () => {
+			checkInitialCheckboxes();
+		});
+
+		$(window).on('beforeunload', function() {
+			return undefined;
+		});
 	</script>
 </body>
 </html>

@@ -103,8 +103,8 @@ textarea{
     display: block;
     width: 17em;
     height: 17em;
-    border-radius: 4%;
-    transition: transform 0.3s ease-in-out;
+    border-radius: 8%;;
+    transition: transform 0.15s ease-in-out;
 	border: 1px solid #444;
     overflow: hidden;
 }
@@ -116,14 +116,12 @@ textarea{
 }
 
 .container label:hover{
-    animation: boxHover both 0.3s;
+    animation: boxHover both 0.15s;
 }
 
 @keyframes boxHover {
     from {}
     to {
-        width: 18em;
-        height: 18em;
         filter: grayscale(0%) saturate(125%);
     }
 }

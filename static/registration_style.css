@@ -104,8 +104,11 @@ html, body {
 	}
 
 	.registration-box{
-        width:90%;  
+        width:97%;  
 		text-align: center;
+		padding: 0em;
+		padding-top: 1em;
+
     }
 
 	input[type="submit"]{

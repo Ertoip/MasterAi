@@ -105,8 +105,8 @@ textarea{
 .box {
     width: 25em;
     height: 25em;
-    border-radius: 4%;
-    transition: transform 0.3s ease-in-out;
+    border-radius: 8%;;
+    transition: transform 0.15s ease-in-out;
     text-align: center;
     vertical-align:middle;
 	border: 1px solid #444;
@@ -116,7 +116,7 @@ textarea{
 }
 
 .box:hover {
-    animation: boxHover both 0.3s;
+    animation: boxHover both 0.15s;
 }
 
 @keyframes boxHover {
@@ -156,6 +156,11 @@ textarea{
     font-weight: bolder;
 }
 
+.box button{
+    padding: 0px;
+    border: none;
+}
+
 .formbox{
     flex: 1;
 }
@@ -188,8 +193,8 @@ a {
     display: block;
     width: 17em;
     height: 17em;
-    border-radius: 4%;
-    transition: transform 0.3s ease-in-out;
+    border-radius: 8%;;
+    transition: transform 0.15s ease-in-out;
 	border: 1px solid #444;
     overflow: hidden;
 }
@@ -201,14 +206,12 @@ a {
 }
 
 .radioContainer label:hover{
-    animation: radioHover both 0.3s;
+    animation: radioHover both 0.15s;
 }
 
 @keyframes radioHover {
     from {}
     to {
-        width: 18em;
-        height: 18em;
         filter: grayscale(0%) saturate(125%);
     }
 }
@@ -231,6 +234,146 @@ a {
 .radioContainer input[type="radio"]:checked + label {
     box-shadow: 0px 0px 1em white;
     filter: grayscale(0%) saturate(125%);
+}
+  
+/* Hide the boxes next to the radio labels */
+#form-toggle input[type="radio"] + label:before {
+    display: none;
+}
+
+#form-toggle label {
+    background-color: #444;
+    color: #e8e6e3;
+    padding: 0.5em;
+    margin-bottom: 0.5em;
+    display: inline-block;
+    cursor: pointer;
+}
+
+#form-toggle label:first-of-type {
+    border-radius: 0.25em 0 0 0.25em;
+}
+
+#form-toggle label:last-of-type {
+    border-radius: 0 0.25em 0.25em 0;
+}
+
+#num_players_div h3{
+    margin-top: 0 !important;
+}
+
+/* Style the forms */
+#form-toggle input[type="radio"]{
+    display: none !important;
+}    
+
+#form-toggle input[type="radio"]:checked + label {
+	background-color: #2b6f65;
+}
+
+/* checkbox form */
+.checkbox-container{
+    gap: 0.5em;
+    display: flex;
+    flex-wrap:wrap;
+    justify-content:space-evenly;
+}
+
+#checkbox-form figure {
+    position: relative;
+    margin: 0;
+}
+
+#checkbox-form img {
+    display: block;
+    width: 100%;
+    height: auto;
+    z-index: 1;
+
+}
+
+#checkbox-form figcaption {
+    position: absolute;
+    top: 42%;
+    left: 0;
+    right: 0;
+    padding: 0.3em;
+    margin: 0;
+    z-index: 2;
+    color: white;
+    font-size: 1.5em;
+    font-weight: bolder;
+}
+
+#checkbox-form h3{
+    width: 100%;
+}
+
+#checkbox-form input[type="text"]{
+    left: 0;
+}
+
+.checkbox {
+    width: 18em;
+    height: 18em;
+    border-radius: 8%;;
+    transition: transform 0.15s ease-in-out;
+    text-align: center;
+    vertical-align:middle;
+	border: 1px solid #444;
+    position: relative;
+    overflow: hidden;
+}
+
+.checkbox img{
+    filter: brightness(60%);
+}
+
+.checkbox:hover{
+    animation: checkboxHover both 0.15s;
+}
+
+@keyframes checkboxHover {
+    from {}
+    to {
+        box-shadow: 1em 1em 3em black;
+        filter: brightness(100%) saturate(125%);
+    }
+}
+
+.checkbox:hover img{
+    animation: checkboxHoverImg both 0.15s;
+}
+
+@keyframes checkboxHoverImg {
+    from {}
+    to {
+        filter: brightness(100%);
+    }
+}
+
+.container input[type="checkbox"]:active + label{
+    animation: checkboxActive both 1s;
+}
+
+@keyframes checkboxActive {
+    50% {
+        box-shadow: 0em 0em 3em white;
+        filter: brightness(100%) saturate(125%);
+    }
+    100% {
+        box-shadow: 0em 0em 1em white;
+        filter: brightness(100%) saturate(125%);
+    }
+}
+
+input[type="checkbox"]:checked + label {
+    box-shadow: 0px 0px 1em white;
+    filter: brightness(100%) saturate(125%);
+}
+
+.container input[type="checkbox"] {
+    display: none;
 }
 
 @media screen and (max-width: 768px) {

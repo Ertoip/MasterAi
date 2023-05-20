@@ -13,18 +13,19 @@ html, body {
     display: flex;
     flex-wrap:wrap;
     column-gap: 0.5em;
+    row-gap: 1em;
     justify-content:space-evenly;
     align-items:center;
-    height: 90vh;
+    height: 93vh;
     width: 100%;
-    margin-top: 5vh;
+    margin-top: 2.5vh;
 }
 
 .box {
-    width: 26em;
-    height: 26em;
-    border-radius: 4%;
-    transition: transform 0.3s ease-in-out;
+    width: 28em;
+    height: 28em;
+    border-radius: 8%;
+    transition: transform 0.15s ease-in-out;
     text-align: center;
     vertical-align:middle;
 	border: 1px solid #444;
@@ -37,21 +38,20 @@ html, body {
 }
 
 .box:hover {
-    animation: boxHover 0.3s ease-out forwards;
+    animation: boxHover 0.15s ease-out forwards;
+    transform: translateZ(0);
 }
 
 @keyframes boxHover {
     from {}
     to {
-        width: 27em;
-        height: 27em;
         box-shadow: 1em 1em 3em black;
         filter: brightness(100%) saturate(125%);
     }
 }
 
 .box:hover img{
-    animation: imgHover 0.3s ease-out forwards;
+    animation: imgHover 0.15s ease-out forwards;
 }
 
 @keyframes imgHover {
@@ -90,6 +90,7 @@ html, body {
 a {
     color: inherit;
     text-decoration: none;
+    position: static;
 }
 
 @media screen and (max-width: 768px) {
@@ -102,8 +103,8 @@ a {
     .box {
         width: 20em;
         height: 20em;
-        border-radius: 4%;
-        transition: transform 0.3s ease-in-out;
+        border-radius: 8%;;
+        transition: transform 0.15s ease-in-out;
         text-align: center;
         vertical-align: middle;
         border: 1px solid #444;

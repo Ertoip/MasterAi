@@ -104,11 +104,11 @@ textarea{
     flex: 1;
 }
 
-.box {
+#boxId {
     width: 25em;
     height: 25em;
-    border-radius: 4%;
-    transition: transform 0.3s ease-in-out;
+    border-radius: 8%;;
+    transition: transform 0.15s ease-in-out;
     text-align: center;
     vertical-align:middle;
 	border: 1px solid #444;
@@ -118,26 +118,23 @@ textarea{
 }
 
 .box:hover {
-    animation: boxHover both 0.3s;
+    animation: boxHover both 0.15s;
 }
 
 @keyframes boxHover {
     from {}
     to {
-        width: 26em;
-        height: 26em;
         box-shadow: 1em 1em 3em black;
         filter: grayscale(0%) saturate(125%);
     }
 }
 
-
-.box figure {
+#boxId figure {
     position: relative;
     margin: 0;
 }
 
-.box img {
+#boxId img {
     display: block;
     width: 100%;
     height: auto;
@@ -145,7 +142,7 @@ textarea{
 
 }
 
-.box figcaption {
+#boxId figcaption {
     position: absolute;
     top: 42%;
     left: 0;
@@ -158,6 +155,10 @@ textarea{
     font-weight: bolder;
 }
 
+#boxId button{
+    padding: 0px;
+    border: none;
+}
 .formbox{
     flex: 1;
 }
@@ -195,4 +196,31 @@ a {
 	background-color: red;
     color: white;
     border-color: red;
+}
+
+.player-card {
+    border-radius: 10px;
+    border: 1px solid gray;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color:rgb(16, 15, 15);
+}
+
+.player-name {
+    border-bottom: 1px solid gray;
+    padding-bottom: 5px;
+}
+
+.character-info {
+    margin-top: 10px;
+}
+
+.playerNotReady{
+    color:red;
+    font-weight:bold;
+}
+
+.playerReady{
+    color:#54d7b9;
+    font-weight:bold;
 }

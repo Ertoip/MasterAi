@@ -12,3 +12,4 @@ python-multipart
 bcrypt
 fastapi-utils
 cachetools
+tiktoken
