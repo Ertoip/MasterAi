@@ -3,7 +3,9 @@
 <head>
 	<title>{{game["name"]}}</title>
     <link rel="stylesheet" href="{{url_for('static', path='gamepage.css')}}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="{{url_for('static', path='js/jquery-3.7.0.min.js')}}"></script>
+</head>
 <body>
 	<button onclick="goBack()" type="button">Back</button>
 
@@ -30,7 +32,7 @@
 						<input type="text" name="name" id="name" required>
 						<h3 for="incipit">Game incipit:</h3>
 						<textarea id="incipit" name="incipit" required></textarea>
-						<h3>Select language:</h3>
+						<h3>Language:</h3>
 						<select id="language" name="language" required>
 							<option value="english">English</option>
 							<option value="italian">Italian</option>

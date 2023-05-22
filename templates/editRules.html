@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
+    <button onclick="goBack()" type="button">Back</button>
+
     <h1>Edit</h1>
     <div class="container">
         {% for game in games %}
@@ -19,14 +21,11 @@
             </a>
         {% endfor %}
 
-        <a href="/">
-          <div class="box">
-              <figure>
-                  <img src="{{url_for('static', path='images/door.jpg')}}" style="width:100%">
-                  <figcaption>Home</figcaption>
-              </figure> 
-          </div>
-        </a>
+        <script>
+          function goBack() {
+            window.location.href = "/";
+          }
+        </script>
     </div>
   </body>
 </html>

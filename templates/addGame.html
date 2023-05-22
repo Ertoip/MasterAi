@@ -11,6 +11,8 @@
 
   <h1>Submit a Game</h1>
   <form action="/addGame" method="post">
+    <input type="submit" value="Submit Game">
+
     <p>{{message}}</p>    
 
     <label for="name">Game Name:</label><br>
@@ -26,8 +28,6 @@
         <label for="{{url['key']}}"><img src="{{url['link']}}"></label>
       {% endfor %}
     </div>
-
-    <input type="submit" value="Submit Game">
   </form>
   <script>
     function goBack() {

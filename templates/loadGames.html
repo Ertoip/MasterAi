@@ -6,8 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
+    <button onclick="goBack()" type="button">Back</button>
+
     <h1>Load a game</h1>
     <h2>Local</h2>
+
     <div class="container">
       {% for game in games %}
         <a href="/loadPage/{{game['id']}}">
@@ -19,15 +22,6 @@
           </div>
         </a>
       {% endfor %}
-
-      <a href="/">
-        <div class="box">
-            <figure>
-                <img src="{{url_for('static', path='images/door.jpg')}}" style="width:100%">
-                <figcaption>Home</figcaption>
-            </figure> 
-        </div>
-      </a>
     </div>
 
 
@@ -43,14 +37,13 @@
           </div>
         </a>
       {% endfor %}
-      <a href="/">
-        <div class="box">
-            <figure>
-                <img src="{{url_for('static', path='images/door.jpg')}}" style="width:100%">
-                <figcaption>Home</figcaption>
-            </figure> 
-        </div>
-      </a>
+    </div>
+
+      <script>
+        function goBack() {
+          window.location.href = "/";
+        }
+      </script>
     </div>
   </body>
 </html>

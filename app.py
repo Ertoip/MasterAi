@@ -18,6 +18,7 @@ from typing import Annotated, Optional
 import re
 import uuid
 from cachetools import TTLCache
+import copy
 import json
 import tiktoken
 
@@ -66,7 +67,7 @@ openai.api_key = keys.openai
 #init auth
 SECRET_KEY=keys.secret_key
 ALGORITHM="HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 240
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
 class User(BaseModel):
     id: str
@@ -324,6 +325,52 @@ def startChat(sessionId, tot, messages, gameData, token, credits, sessionData):
         print(tot, completion.usage.completion_tokens + completion.usage.prompt_tokens)
         
         return tot, messages
+    
+def getFriends(userId):
+    #get all friendships on user 1
+    response = friendsTable.query(
+        KeyConditionExpression = Key('user1').eq(userId)
+    )
+    
+    ids = []
+    bucket_name = 'masteraibucket'
+
+    if "Items" in response:
+        response = response["Items"]
+        
+        for friend in response:
+            ids.append({"id":friend["user2"]})
+        
+    #get items on user 2
+    response = friendsTable.query(
+        IndexName='user2-user1-index',
+        KeyConditionExpression = Key('user2').eq(userId)
+    )
+    
+    if "Items" in response:
+        response = response["Items"]
+        
+        for friend in response:
+            ids.append({"id":friend["user1"]})
+            
+    if ids[0:1]:
+        response = dynamodb.batch_get_item(
+            RequestItems={
+                'MasterAiUsers': {
+                    'Keys': ids
+                }
+            }
+        )
+            
+        friends = response["Responses"]['MasterAiUsers']
+        
+        for friend in friends:
+            friend["icon"] = loadImage(bucket_name, friend["icon"])
+        
+        return friends
+    else:
+        return []
+    
 
 ######################routes######################
 
@@ -347,6 +394,7 @@ class chat(object):
         self.game_rules = ""
         self.sessionId = ""
         self.generating = False
+        self.num_players = 1
         
     def start(self, request: Request, gameData: dict, token: str):
         cache_control = request.headers.get("Cache-Control")
@@ -397,6 +445,7 @@ class chat(object):
             
         user = table.get_item(Key={'id': token["id"]})
         credits = user['Item']['credits']
+        self.num_players = gameData["numPlayers"]
 
         if cache_control != "no-cache":
             while True:
@@ -572,6 +621,7 @@ class chat(object):
             friends = []
             online = False
             response["playerSheets"] = json.loads(response["playerSheets"])
+            self.num_players = response["numPlayers"]
 
             #check if it is online session 
             if "friends" in response:
@@ -597,7 +647,7 @@ class chat(object):
                 if "Item" in user:
                     user = user["Item"]
 
-                    self.messages = response["chat"]
+                    self.messages = list(response["chat"])
 
                     self.sessionId = gameData["gameId"]
                     
@@ -623,32 +673,29 @@ class chat(object):
                     
                         if response["chat"] == []:
                             
-                            self.tot, self.messages = startChat(self.sessionId, self.tot, self.messages, gameData, token, user["credits"], response)
+                            self.tot, self.messages = startChat(self.sessionId, self.tot, self.messages, gameData, token, user["credits"], response)  
                         
+                        messagesToSend = copy.deepcopy(self.messages)
                         
-                        for i in range(len(self.messages)):
-                            if self.messages[i]["role"] == "user": 
-                                message = self.messages[i]["content"]
-                                parts = message.split("[USERNAME]")
+                        if len(messagesToSend)>4:     
+                            messagesToSend = list(messagesToSend[0:-(int(response["numPlayers"])+1)])
+                        
+                        print(messagesToSend)
+                        for ms in messagesToSend:
                             
-
-                                # Store the split parts in a new variable or update the existing message
-                                self.messages[i]["content"] = parts
-                        
-                        ms = self.messages
-                        if len(self.messages)>4:     
-                            ms = ms[0:-(int(response["numPlayers"])+1)]
-                        
+                            ms["content"] = ms["content"].split("[USERNAME]")
+                            
                         return templates.TemplateResponse("chat.html", {"request": request,
                                                 "game": response["name"], 
                                                 "id":gameData["gameId"], 
                                                 "credits":user["credits"],
                                                 "uid":token["id"],
-                                                "messages": ms,
+                                                "messages": messagesToSend,
                                                 "url":"loadPage",
                                                 "numPlayers":response["numPlayers"],
                                                 "players":response["playerSheets"],
                                                 "online":online})
+
 
                     return templates.TemplateResponse("chat.html", {"request": request,
                                                                     "game": response["name"], 
@@ -695,7 +742,7 @@ class chat(object):
 
             if rule != "none":
                 self.messages.append({"role":"system", "content":"Rules:"+rule})
-            
+                        
             # remove messages with "system" role between third and last two messages
             messages_to_remove = [msg for msg in self.messages[3:-3] if msg["role"] == "system"]
             for msg in messages_to_remove:
@@ -771,16 +818,19 @@ class chat(object):
             if len(session['currentChat']) >= session['numPlayers']:
                 # first part to get the rule
                 ms = ''
-                messageList = []
                                 
                 for message in session['currentChat']:
-                    ms = ms+"\n"+message["name"] + ": "+message["message"]
-                    messageList.append({"role":"user", "content":message["name"] + "[USERNAME]" + message["message"]})
+                    ms = ms+"\n"+message["name"] + "[USERNAME]"+message["message"]
+                
+                messageList = {"role":"user", "content":ms}
 
+                self.messages.append(messageList)
+                
                 prompt = f"""You are part of a system to play role play games, your job is given a situation to look through the rules of the game we are currently
-                playing and tell me if there is an applicable rule for this situation and which is it by saying the name of the rule and the rule as it is written. 
+                playing and tell me if there is an applicable rule for this situation and which is it by saying the name of the rule and the rule as it is written.
+                Each player will send a different message you should check them one by one, the player and his message are divided by [USERNAME]. 
                 Given the situation '{ms}', print out the rules needed in this situation '{self.game_rules}'.
-                If there is no applicable rule say just 'none' and nothing else"""
+                If there is no applicable rule to any message that each user has sent say just 'none' and nothing else"""
 
                 message = [{"role": "system",  
                             "content": prompt}]
@@ -794,21 +844,24 @@ class chat(object):
                 )
                 
                 self.tot = completion.usage.completion_tokens*0.000002 + completion.usage.prompt_tokens*0.000002        
-                rule = completion.choices[0].message.content
+                rule = completion.choices[0].message.content  
                 
-                # second part return the result    
-                self.messages.extend(messageList)
+                print(rule)
 
                 if rule != "none":
                     self.messages.append({"role":"system", "content":"Rules:"+rule})
                 
+                offset = int(self.num_players)+2
+                
                 # remove messages with "system" role between third and last two messages
-                messages_to_remove = [msg for msg in self.messages[3:-6] if msg["role"] == "system"]
+                messages_to_remove = [msg for msg in self.messages[3:-offset] if msg["role"] == "system"]
                 for msg in messages_to_remove:
                     self.messages.remove(msg)    
                 
+                print("messages:", self.messages)
+                
                 self.messages = removeMessages(self.messages)
-                                
+                                                
                 completion = openai.ChatCompletion.create(
                     model="gpt-3.5-turbo", 
                     messages=self.messages,
@@ -818,8 +871,7 @@ class chat(object):
                 self.tot = completion.usage.completion_tokens*0.000002 + completion.usage.prompt_tokens*0.000002
                 print(self.tot, completion.usage.completion_tokens + completion.usage.prompt_tokens)
                 
-                for item in messageList:
-                    appendItem(id, item)
+                appendItem(id, messageList)
                     
                 ms = completion.choices[0].message.content
                 self.messages.append({"role":"assistant", "content": ms})
@@ -1565,47 +1617,7 @@ def setNotReadyFriends(request: Request, sessionId: str,token: str = Depends(get
 @app.get("/friends")
 async def friends(request: Request, token: str = Depends(get_current_active_user)): 
         
-    #get all friendships on user 1
-    response = friendsTable.query(
-        KeyConditionExpression = Key('user1').eq(token["id"])
-    )
-    
-    ids = []
-    bucket_name = 'masteraibucket'
-
-    if "Items" in response:
-        response = response["Items"]
-        
-        for friend in response:
-            ids.append({"id":friend["user2"]})
-        
-    #get items on user 2
-    response = friendsTable.query(
-        IndexName='user2-user1-index',
-        KeyConditionExpression = Key('user2').eq(token["id"])
-    )
-    
-    if "Items" in response:
-        response = response["Items"]
-        
-        for friend in response:
-            ids.append({"id":friend["user1"]})
-            
-    if ids[0:1]:
-        response = dynamodb.batch_get_item(
-            RequestItems={
-                'MasterAiUsers': {
-                    'Keys': ids
-                }
-            }
-        )
-            
-        friends = response["Responses"]['MasterAiUsers']
-        
-        for friend in friends:
-            friend["icon"] = loadImage(bucket_name, friend["icon"])
-    else:
-        friends = []
+    friends = getFriends(token["id"])
            
     return templates.TemplateResponse("friends.html", {"friends":friends, "request": request})
 
@@ -1785,48 +1797,7 @@ async def gamePage(request: Request, gameId: str, token: str = Depends(get_curre
                 "key": s3_object["Key"]
             })   
             
-    #get all friendships on user 1
-    response = friendsTable.query(
-        KeyConditionExpression = Key('user1').eq(token["id"])
-    )
-    
-    ids = []
-    bucket_name = 'masteraibucket'
-
-    if "Items" in response:
-        response = response["Items"]
-        
-        for friend in response:
-            ids.append({"id":friend["user2"]})
-        
-    #get items on user 2
-    response = friendsTable.query(
-        IndexName='user2-user1-index',
-        KeyConditionExpression = Key('user2').eq(token["id"])
-    )
-    
-    if "Items" in response:
-        response = response["Items"]
-        
-        for friend in response:
-            ids.append({"id":friend["user1"]})
-            
-    if ids[0:1]:
-        response = dynamodb.batch_get_item(
-            RequestItems={
-                'MasterAiUsers': {
-                    'Keys': ids
-                }
-            }
-        )
-            
-        friends = response["Responses"]['MasterAiUsers']
-        
-        for friend in friends:
-            friend["icon"] = loadImage(bucket_name, friend["icon"])
-    else:
-        friends = []
-           
+    friends = getFriends(token["id"])
     
     return templates.TemplateResponse("gamepage.html", {"request": request, "user":user, "game":gameResponse, "images": images, "friends":friends})
 
@@ -1845,7 +1816,9 @@ async def gamesharedPagePage(request: Request, gameId: str, token: str = Depends
     og = table.get_item(Key={"id": game["userId"]})
     og = og["Item"]["username"]
     
-    return templates.TemplateResponse("gamepage.html", {"request": request, "user":user, "game":game, "og": og})
+    friends = getFriends(token["id"])
+    
+    return templates.TemplateResponse("gamepage.html", {"request": request, "user":user, "game":game, "og": og, "friends":friends})
 
 #logiut remove token
 @app.get("/logout")
