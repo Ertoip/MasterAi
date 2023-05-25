@@ -10,6 +10,7 @@
 	<button onclick="goBack()" type="button">Back</button>
 
 	<h1>{{game["name"]}}</h1>
+	<h2 style="color:red">{{errorMessage}}</h2>
 
 	{% if owner %}
 	<form action="/deleteSession/{{game['id']}}" method="post">

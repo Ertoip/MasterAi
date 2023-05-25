@@ -166,12 +166,16 @@ def removeCredits(token, creditsToRemove=1):
 
 #append item to db list
 def appendItem(id, message, table=sessionTable, item='chat'):
-    # Use the UpdateItem method to append the new item to the list
-    response = sessionTable.update_item(
-        Key={'id': id},
-        UpdateExpression=f'SET {item} = list_append({item}, :new_item)',
-        ExpressionAttributeValues={':new_item': [message]}
-    )
+    try:
+        # Use the UpdateItem method to append the new item to the list
+        response = sessionTable.update_item(
+            Key={'id': id},
+            UpdateExpression=f'SET {item} = list_append({item}, :new_item)',
+            ExpressionAttributeValues={':new_item': [message]}
+        )
+    except:
+        return RedirectResponse('/', status_code=status.HTTP_302_FOUND)
+
 
 def checkCredits(token, creditsToRemove=1):
     response = table.get_item(Key={'id': token})
@@ -214,7 +218,7 @@ def checkFriendship(userId, friendId):
     return True
 
 #remove excess messages
-def removeMessages(messages, max_tokens=3800):
+def removeMessages(messages, max_tokens=8000):
 
     # calculate current number of tokens
     token_count = num_tokens(messages)
@@ -269,8 +273,11 @@ def startChat(sessionId, tot, messages, gameData, token, credits, sessionData):
     a villager should not have the same tone as a demon.
     -if user asks something unrelated to the game session do not answer
     
-    You must speak only in {sessionData["language"]}, be very descriptive to make sure that player understand what to do
-    Now start the by saying "Welcome players to *game name*. *brief game description*. *Incipit introduction*. *Starting situation to start the story*."     
+    player usernames are followed by [USERNAME], [ENDMESSAGE] is the end of user message end the start of yours.
+    [USERNAME], [ENDMESSAGE] and [NEXTUSER] are system tag do not show it to the user
+    You must speak only in {sessionData["language"]}, be very descriptive to make sure that player understand what to do.
+    Your responses should be shorter than 60 words.
+    Now start the by saying "Welcome players to *game name*. *brief game description*. *Incipit introduction*. *Starting situation to start the story*."
     """
     
     if credits > 0:
@@ -439,7 +446,9 @@ class chat(object):
         -if user asks something unrelated to the game session do not answer
         
         player usernames are followed by [USERNAME]
+        [USERNAME] is a system tag do not show it to the user
         You must speak only in {gameData["language"]}, be very descriptive to make sure that player understand what to do.
+        Your responses should be shorter than 60 words.
         Now start the by saying "Welcome players to *game name*. *brief game description*. *Incipit introduction*. *Starting situation to start the story*."     
         """
             
@@ -523,20 +532,31 @@ class chat(object):
             message={"role":"assistant", "content":completion.choices[0].message.content}
             self.messages.append(message)
             appendItem(self.sessionId, message) 
-            print(self.tot, completion.usage.completion_tokens + completion.usage.prompt_tokens)
-        
+            
+            messagesToSend = copy.deepcopy(self.messages)
+            
+            for ms in messagesToSend:
+                ms["content"] = ms["content"].split("[NEXTUSER]")
+                
+                if len(ms["content"]) > 2:
+                    ms["content"] = ms["content"][0:-1]
+                
+                for mess in ms["content"]:
+                    mess.replace("[ENDMESSAGE]", "")
+                    mess = mess.split("[USERNAME]")
+                    
             return templates.TemplateResponse("chat.html", {"request": request,
-                                                            "game": game, 
+                                                            "game": gameData["name"], 
                                                             "id":gameData["gameId"], 
                                                             "credits":credits, 
-                                                            "messages": self.messages, 
+                                                            "messages": messagesToSend, 
                                                             "url":"gamePage",
                                                             "numPlayers":gameData["numPlayers"],
                                                             "players": playerSheets})
         
         #ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad
         return templates.TemplateResponse("chat.html", {"request": request,
-                                                        "game": game, 
+                                                        "game": gameData["name"], 
                                                         "id":gameData["gameId"], 
                                                         "credits":"This should start and ad", 
                                                         "messages": self.messages, 
@@ -608,9 +628,8 @@ class chat(object):
                 sessionTable.put_item(Item=new_item)
                 
                 break
-        
-        return RedirectResponse(f"/loadSession/{self.sessionId}", status_code=status.HTTP_302_FOUND)
 
+        return RedirectResponse(f"/loadSession/{self.sessionId}", status_code=status.HTTP_302_FOUND)
 
     def resume(self, request: Request, gameData: dict, token: str):
         response = sessionTable.get_item(Key={"id": gameData["gameId"]})
@@ -647,7 +666,7 @@ class chat(object):
                 if "Item" in user:
                     user = user["Item"]
 
-                    self.messages = list(response["chat"])
+                    self.messages = response["chat"]
 
                     self.sessionId = gameData["gameId"]
                     
@@ -671,19 +690,28 @@ class chat(object):
                             if response["owner"] == sheet["id"]:
                                 sheet["owner"] = True
                     
-                        if response["chat"] == []:
-                            
+                        if response["chat"] == [] and response["owner"] == token["id"]:  
                             self.tot, self.messages = startChat(self.sessionId, self.tot, self.messages, gameData, token, user["credits"], response)  
-                        
+                        elif response["chat"] == []:
+                            return RedirectResponse(f"/loadSession/"+gameData["gameId"]+"/NOT_READY", status_code=status.HTTP_302_FOUND)
+
                         messagesToSend = copy.deepcopy(self.messages)
                         
                         if len(messagesToSend)>4:     
-                            messagesToSend = list(messagesToSend[0:-(int(response["numPlayers"])+1)])
-                        
-                        print(messagesToSend)
+                            messagesToSend = messagesToSend[0:-2]
+                                                
                         for ms in messagesToSend:
-                            
-                            ms["content"] = ms["content"].split("[USERNAME]")
+                            ms["content"] = ms["content"].split("[NEXTUSER]")
+
+                            if len(ms["content"]) > 1:
+                                ms["content"] = ms["content"][0:-1]
+                                messagesToAppend = []
+                                for mess in ms["content"]:
+                                    mess.replace("[ENDMESSAGE]", "")
+                                    mess = mess.split("[USERNAME]")
+                                    messagesToAppend.append(mess)
+                                
+                                ms["content"] = messagesToAppend
                             
                         return templates.TemplateResponse("chat.html", {"request": request,
                                                 "game": response["name"], 
@@ -695,14 +723,27 @@ class chat(object):
                                                 "numPlayers":response["numPlayers"],
                                                 "players":response["playerSheets"],
                                                 "online":online})
+                    
+                    messagesToSend = copy.deepcopy(self.messages)
 
+                    
+                    for ms in messagesToSend:
+                        ms["content"] = ms["content"].split("[NEXTUSER]")
+                        
+                        if len(ms["content"]) > 2:
+                            ms["content"] = ms["content"][0:-1]
+                        
+                        for mess in ms["content"]:
+                            mess.replace("[ENDMESSAGE]", "")
+                            mess = mess.split("[USERNAME]")
+                        
 
                     return templates.TemplateResponse("chat.html", {"request": request,
                                                                     "game": response["name"], 
                                                                     "id":gameData["gameId"], 
                                                                     "credits":user["credits"],
                                                                     "uid":token["id"],
-                                                                    "messages": self.messages,
+                                                                    "messages": messagesToSend,
                                                                     "url":"loadPage",
                                                                     "numPlayers":response["numPlayers"],
                                                                     "players":response["playerSheets"],
@@ -772,8 +813,7 @@ class chat(object):
         #ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad ad
         ms = ""
         return ms, "This should start an ad"
-
-    
+  
     def addMessage(self, Message: message, id:str, token: str):
                 
         session = sessionTable.get_item(Key={"id": id})
@@ -814,14 +854,18 @@ class chat(object):
                 
                 credits = removeCredits(token["id"])
             
-            print(len(session['currentChat']))
             if len(session['currentChat']) >= session['numPlayers']:
                 # first part to get the rule
                 ms = ''
+                length = len(session['currentChat'])
                                 
-                for message in session['currentChat']:
-                    ms = ms+"\n"+message["name"] + "[USERNAME]"+message["message"]
-                
+                for n in range(length):
+                    message = session['currentChat'][n]
+                    if n < length:
+                        ms = ms+"\n"+message["name"] + "[USERNAME]"+message["message"]+"[NEXTUSER]"
+                    else:
+                        ms = ms+"\n"+message["name"] + "[USERNAME]"+message["message"]+"[ENDMESSAGE]"
+                                        
                 messageList = {"role":"user", "content":ms}
 
                 self.messages.append(messageList)
@@ -858,7 +902,6 @@ class chat(object):
                 for msg in messages_to_remove:
                     self.messages.remove(msg)    
                 
-                print("messages:", self.messages)
                 
                 self.messages = removeMessages(self.messages)
                                                 
@@ -1424,7 +1467,8 @@ async def loadPage(request: Request, gameId: str, token: str = Depends(get_curre
 
 #resume page game
 @app.get("/loadSession/{sessionId}")
-async def loadSession(request: Request, sessionId: str, token: str = Depends(get_current_active_user)):
+@app.get("/loadSession/{sessionId}/{errorStatus}")
+async def loadSession(request: Request, sessionId: str, errorStatus: str = "", token: str = Depends(get_current_active_user)):
     response = sessionTable.get_item(Key={"id": sessionId})["Item"]
     
     #check if request is valid
@@ -1489,8 +1533,13 @@ async def loadSession(request: Request, sessionId: str, token: str = Depends(get
                 UpdateExpression='SET friends = :val1',
                 ExpressionAttributeValues={':val1': json.dumps(friendStatus)}
             )
+            
+            errorMessage = ""
+            
+            if errorStatus == "NOT_READY":
+                errorMessage = "Wait for the owner to generate the game"
                                         
-            return templates.TemplateResponse("loadpage.html", {"request": request, "rules":rules, "game":response, "ready":all_ready, "owner":owner})
+            return templates.TemplateResponse("loadpage.html", {"request": request, "rules":rules, "game":response, "ready":all_ready, "owner":owner, "errorMessage": errorMessage})
     
     return RedirectResponse('/loadGames', status_code=status.HTTP_302_FOUND)
 
@@ -1816,9 +1865,22 @@ async def gamesharedPagePage(request: Request, gameId: str, token: str = Depends
     og = table.get_item(Key={"id": game["userId"]})
     og = og["Item"]["username"]
     
+    bucket_name = 'masteraibucket'
+    s3_objects = s3.list_objects(Bucket=bucket_name, Prefix="icons")
+        
+    # Generate list of image URLs
+    images = []
+    for s3_object in s3_objects['Contents']:
+        object_key = s3_object['Key']
+        if object_key.endswith('.jpg') or object_key.endswith('.jpeg') or object_key.endswith('.png'):
+            images.append({
+                "link":loadImage(bucket_name, object_key),
+                "key": s3_object["Key"]
+            })   
+    
     friends = getFriends(token["id"])
     
-    return templates.TemplateResponse("gamepage.html", {"request": request, "user":user, "game":game, "og": og, "friends":friends})
+    return templates.TemplateResponse("gamepage.html", {"request": request, "user":user, "game":game,  "images": images, "og": og, "friends":friends})
 
 #logiut remove token
 @app.get("/logout")
